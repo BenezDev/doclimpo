@@ -1,1 +1,31 @@
 project_id = "powthshacxtxqfsuifeb"
+
+[functions.process-referral]
+verify_jwt = false
+
+[functions.delete-account]
+verify_jwt = false
+
+[functions.user-stats]
+verify_jwt = false
+
+[functions.send-test-notification]
+verify_jwt = false
+
+[functions.documents-filter]
+verify_jwt = false
+
+[functions.check-expiring-documents]
+verify_jwt = false
+
+[functions.create-checkout]
+verify_jwt = false
+
+[functions.check-subscription]
+verify_jwt = false
+
+[functions.customer-portal]
+verify_jwt = false
+
+[functions.send-pending-notifications]
+verify_jwt = false

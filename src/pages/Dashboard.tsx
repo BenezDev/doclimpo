@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
-import { supabase } from '../lib/supabase'
+import { useAuth } from '../hooks/useAuth'
+import { supabase } from '../integrations/supabase/client'
 import { AddDocumentModal } from '../components/ui/AddDocumentModal'
 
 const ACCENT = '#4361ee'
@@ -41,9 +41,6 @@ function formatarData(data: string) {
   const partes = data.split('-')
   return `${partes[2]}/${partes[1]}/${partes[0]}`
 }
-  const [ano, mes, dia] = data.split('-')
-  return `${dia}/${mes}/${ano}`
-}
 
 function getStatus(dias: number) {
   if (dias < 0) return { label: 'Vencido', cor: '#ef4444', bg: '#fef2f2', bgDark: '#1a0a0a' }
@@ -59,6 +56,7 @@ export default function Dashboard() {
   const [docs, setDocs] = useState<Documento[]>([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(false)
+  const [versao, setVersao] = useState(0)
 
   const bg = dark ? '#09090f' : '#f8f9fc'
   const surface = dark ? '#0e0e18' : '#ffffff'
@@ -69,18 +67,27 @@ export default function Dashboard() {
   const hora = new Date().getHours()
   const saudacao = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite'
 
-  const carregarDocs = async () => {
-    setLoading(true)
-    const { data } = await supabase
-      .from('documentos')
-      .select('*')
-      .eq('resolvido', false)
-      .order('data_vencimento', { ascending: true })
-    setDocs(data || [])
-    setLoading(false)
-  }
+  // O filtro por usuario_id é redundante com o RLS, mas evita depender de
+  // uma única camada: se alguma política afrouxar, a query continua correta.
+  useEffect(() => {
+    if (!user) return
+    let cancelado = false
+    const carregar = async () => {
+      const { data } = await supabase
+        .from('documentos')
+        .select('*')
+        .eq('usuario_id', user.id)
+        .eq('resolvido', false)
+        .order('data_vencimento', { ascending: true })
+      if (cancelado) return
+      setDocs(data || [])
+      setLoading(false)
+    }
+    carregar()
+    return () => { cancelado = true }
+  }, [user, versao])
 
-  useEffect(() => { carregarDocs() }, [])
+  const recarregarDocs = () => setVersao(v => v + 1)
 
   const handleSignOut = async () => {
     await signOut()
@@ -90,7 +97,7 @@ export default function Dashboard() {
   const marcarRenovado = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
     await supabase.from('documentos').update({ resolvido: true }).eq('id', id)
-    carregarDocs()
+    recarregarDocs()
   }
 
   const emDia = docs.filter(d => diasRestantes(d.data_vencimento) > 30).length
@@ -100,7 +107,7 @@ export default function Dashboard() {
   return (
     <div style={{ fontFamily: 'Inter, system-ui, sans-serif', background: bg, minHeight: '100vh', transition: 'background 0.3s' }}>
 
-      {modal && <AddDocumentModal dark={dark} onClose={() => setModal(false)} onSuccess={() => { setModal(false); carregarDocs() }} />}
+      {modal && <AddDocumentModal dark={dark} onClose={() => setModal(false)} onSuccess={() => { setModal(false); recarregarDocs() }} />}
 
       <nav style={{ background: surface, borderBottom: `1px solid ${border}`, padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 100 }}>
         <span style={{ fontSize: 18, fontWeight: 800, color: text }}>

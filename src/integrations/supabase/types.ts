@@ -200,10 +200,15 @@ export type Database = {
           email: string | null
           id: string
           nome: string | null
+          notification_email: boolean
+          notification_hour: number
+          notification_whatsapp: boolean
+          onboarding_completed: boolean
           plan_type: string
           stripe_customer_id: string | null
           telefone: string | null
           user_id: string
+          whatsapp_number: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -212,10 +217,15 @@ export type Database = {
           email?: string | null
           id?: string
           nome?: string | null
+          notification_email?: boolean
+          notification_hour?: number
+          notification_whatsapp?: boolean
+          onboarding_completed?: boolean
           plan_type?: string
           stripe_customer_id?: string | null
           telefone?: string | null
           user_id: string
+          whatsapp_number?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -224,10 +234,15 @@ export type Database = {
           email?: string | null
           id?: string
           nome?: string | null
+          notification_email?: boolean
+          notification_hour?: number
+          notification_whatsapp?: boolean
+          onboarding_completed?: boolean
           plan_type?: string
           stripe_customer_id?: string | null
           telefone?: string | null
           user_id?: string
+          whatsapp_number?: string | null
         }
         Relationships: []
       }

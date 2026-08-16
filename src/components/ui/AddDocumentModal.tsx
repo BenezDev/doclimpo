@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { supabase } from '../../lib/supabase'
-import { useAuth } from '../../context/AuthContext'
+import { supabase } from '../../integrations/supabase/client'
+import { useAuth } from '../../hooks/useAuth'
+import { interpretarErro, textoDaFalha, type FalhaAoSalvar } from '../../lib/erros'
 
 const ACCENT = '#4361ee'
 
@@ -29,7 +30,7 @@ export function AddDocumentModal({ dark, onClose, onSuccess }: Props) {
   const [apelido, setApelido] = useState('')
   const [data, setData] = useState('')
   const [loading, setLoading] = useState(false)
-  const [erro, setErro] = useState('')
+  const [falha, setFalha] = useState<FalhaAoSalvar | null>(null)
 
   const surface = dark ? '#0e0e18' : '#ffffff'
   const bg = dark ? '#09090f' : '#f8f9fc'
@@ -38,19 +39,19 @@ export function AddDocumentModal({ dark, onClose, onSuccess }: Props) {
   const muted = dark ? '#4a5568' : '#64748b'
 
   const handleSalvar = async () => {
-    if (!tipo || !data) return
+    if (!tipo || !data || !user) return
     setLoading(true)
-    setErro('')
+    setFalha(null)
 
     const { error } = await supabase.from('documentos').insert({
-      usuario_id: user?.id,
+      usuario_id: user.id,
       tipo,
       apelido: apelido || null,
       data_vencimento: data,
     })
 
     if (error) {
-      setErro('Erro ao salvar. Tente novamente.')
+      setFalha(interpretarErro(error))
       setLoading(false)
       return
     }
@@ -137,9 +138,19 @@ export function AddDocumentModal({ dark, onClose, onSuccess }: Props) {
               />
             </div>
 
-            {erro && (
-              <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', marginBottom: 16 }}>
-                <p style={{ fontSize: 13, color: '#dc2626', margin: 0 }}>{erro}</p>
+            {falha && (
+              <div style={{ background: falha.tipo === 'limite_plano' ? (dark ? '#1a2640' : '#eff3ff') : '#fef2f2', border: `1px solid ${falha.tipo === 'limite_plano' ? (dark ? '#4361ee40' : '#c7d7fd') : '#fecaca'}`, borderRadius: 8, padding: '12px 14px', marginBottom: 16 }}>
+                <p style={{ fontSize: 13, color: falha.tipo === 'limite_plano' ? (dark ? '#a5b4fc' : '#4338ca') : '#dc2626', margin: 0, lineHeight: 1.6 }}>
+                  {textoDaFalha(falha)}
+                </p>
+                {falha.tipo === 'limite_plano' && (
+                  <button
+                    onClick={onClose}
+                    style={{ marginTop: 10, padding: '8px 14px', background: ACCENT, color: '#fff', border: 'none', borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'Inter, system-ui, sans-serif' }}
+                  >
+                    Fazer upgrade
+                  </button>
+                )}
               </div>
             )}
 

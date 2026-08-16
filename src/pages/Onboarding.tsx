@@ -1,7 +1,8 @@
  import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
-import { supabase } from '../lib/supabase'
+import { useAuth } from '../hooks/useAuth'
+import { supabase } from '../integrations/supabase/client'
+import { interpretarErro, textoDaFalha, type FalhaAoSalvar } from '../lib/erros'
 
 const ACCENT = '#4361ee'
 
@@ -25,19 +26,33 @@ export default function Onboarding() {
   const [apelido, setApelido] = useState('')
   const [data, setData] = useState('')
   const [loading, setLoading] = useState(false)
+  const [falha, setFalha] = useState<FalhaAoSalvar | null>(null)
 
   const nome = user?.user_metadata?.nome || 'usuario'
 
   const handleSalvar = async () => {
-    if (!tipo || !data) return
+    if (!tipo || !data || !user) return
     setLoading(true)
-    await supabase.from('documentos').insert({
-      usuario_id: user?.id,
+    setFalha(null)
+
+    const { error } = await supabase.from('documentos').insert({
+      usuario_id: user.id,
       tipo,
       apelido: apelido || null,
       data_vencimento: data,
     })
-    await supabase.from('profiles').update({ onboarding_completed: true }).eq('id', user?.id)
+
+    if (error) {
+      setFalha(interpretarErro(error))
+      setLoading(false)
+      return
+    }
+
+    await supabase
+      .from('profiles')
+      .update({ onboarding_completed: true })
+      .eq('user_id', user.id)
+
     setLoading(false)
     setStep(3)
   }
@@ -143,6 +158,22 @@ export default function Onboarding() {
                   <div style={{ fontSize: 13, color: '#4338ca', lineHeight: 1.6 }}>
                     Voce vai receber alertas <strong>90 dias, 30 dias e 7 dias antes</strong> do vencimento por email.
                   </div>
+                </div>
+              )}
+
+              {falha && (
+                <div style={{ background: falha.tipo === 'limite_plano' ? '#eff3ff' : '#fef2f2', border: `1px solid ${falha.tipo === 'limite_plano' ? '#c7d7fd' : '#fecaca'}`, borderRadius: 10, padding: '14px 18px', marginBottom: 20 }}>
+                  <p style={{ fontSize: 13, color: falha.tipo === 'limite_plano' ? '#4338ca' : '#dc2626', margin: 0, lineHeight: 1.6 }}>
+                    {textoDaFalha(falha)}
+                  </p>
+                  {falha.tipo === 'limite_plano' && (
+                    <button
+                      onClick={() => navigate('/dashboard')}
+                      style={{ marginTop: 12, padding: '9px 16px', background: ACCENT, color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'Inter, system-ui, sans-serif' }}
+                    >
+                      Ver meus documentos →
+                    </button>
+                  )}
                 </div>
               )}
 

@@ -24,7 +24,6 @@
     "react-router-dom": "^7.15.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.6.0",
-    "three": "^0.184.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -32,7 +31,6 @@
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "@types/three": "^0.184.0",
     "@vitejs/plugin-react": "^6.0.1",
     "autoprefixer": "^10.5.0",
     "eslint": "^10.2.1",

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
+import { supabase } from '../integrations/supabase/client'
+import type { Tables } from '../integrations/supabase/types'
 
 const ACCENT = '#4361ee'
 
@@ -88,7 +89,7 @@ export default function DocumentoDetalhe() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [dark, setDark] = useState(false)
-  const [doc, setDoc] = useState<any>(null)
+  const [doc, setDoc] = useState<Tables<'documentos'> | null>(null)
   const [loading, setLoading] = useState(true)
   const [renovando, setRenovando] = useState(false)
   const [editando, setEditando] = useState(false)
@@ -102,21 +103,27 @@ export default function DocumentoDetalhe() {
   const muted = dark ? '#4a5568' : '#64748b'
 
   useEffect(() => {
+    if (!id) return
+    let cancelado = false
     const carregar = async () => {
       const { data } = await supabase.from('documentos').select('*').eq('id', id).single()
+      if (cancelado) return
       setDoc(data)
       setLoading(false)
     }
     carregar()
+    return () => { cancelado = true }
   }, [id])
 
   const marcarRenovado = async () => {
+    if (!id) return
     setRenovando(true)
     await supabase.from('documentos').update({ resolvido: true }).eq('id', id)
     navigate('/dashboard')
   }
 
   const salvarEdicao = async () => {
+    if (!id) return
     await supabase.from('documentos').update({
       data_vencimento: novaData || doc?.data_vencimento,
       apelido: novoApelido || doc?.apelido,
@@ -127,12 +134,14 @@ export default function DocumentoDetalhe() {
   }
 
   const excluir = async () => {
+    if (!id) return
     if (confirm('Tem certeza que quer excluir este documento?')) {
       await supabase.from('documentos').delete().eq('id', id)
       navigate('/dashboard')
     }
   }
 
+  if (!id) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', fontFamily: 'Inter, system-ui, sans-serif', color: muted }}>Documento nao encontrado.</div>
   if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', fontFamily: 'Inter, system-ui, sans-serif', color: muted }}>Carregando...</div>
   if (!doc) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', fontFamily: 'Inter, system-ui, sans-serif', color: muted }}>Documento nao encontrado.</div>
 
