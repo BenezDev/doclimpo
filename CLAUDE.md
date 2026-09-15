@@ -1,4 +1,4 @@
-# DocAlert
+# DocLimpo
 
 SaaS brasileiro de alertas de vencimento de documentos (CNH, CRLV, IPVA, passaporte…).
 O usuário cadastra documentos com data de vencimento e recebe avisos antes de vencer.
@@ -17,9 +17,9 @@ Há três projetos Supabase envolvidos:
 
 | Ref | Onde | Situação |
 |---|---|---|
-| `powthshacxtxqfsuifeb` | `.env` e `config.toml` deste repo | morto (NXDOMAIN) |
-| `hwsuqxwonfhjtyxervqh` | conta Supabase conectada | pausado, não é do DocAlert |
-| `hkdlthvyhvnlfojwqnxc` | bundle de produção | vivo, com dados reais |
+| `powthshacxtxqfsuifeb` | `config.toml` deste repo | morto (NXDOMAIN) — o `.env` local já NÃO aponta mais para ele |
+| `hwsuqxwonfhjtyxervqh` | conta Supabase conectada ao Claude | ativo, não é do DocLimpo (serve só como staging) |
+| `hkdlthvyhvnlfojwqnxc` | bundle de produção **e o `.env` local (desde 14/09/2026)** | vivo, com dados reais — contas criadas em dev entram aqui |
 
 ## Stack
 
@@ -34,8 +34,9 @@ Tailwind de verdade, note que a v4 configura por CSS — não existe
 
 ```
 src/
-  pages/          Landing_1 · Login · Onboarding · Dashboard · DocumentoDetalhe
-  components/ui/  AddDocumentModal
+  pages/          Landing_1 · Login (com recuperação de senha) · RedefinirSenha · Onboarding ·
+                  Dashboard · DocumentoDetalhe · Conta · Privacy · Termos · ThankYou · NotFound
+  components/ui/  AddDocumentModal · EnderecoModal · OndeRenovar · CookieConsent · PublicShell · Bezel
   context/        auth-context.ts (contexto) · AuthContext.tsx (provider)
   hooks/          useAuth
   lib/            erros.ts (tradução de erros do banco)
@@ -77,6 +78,25 @@ prazos ao usuário: landing, onboarding e tela de detalhe.
 `check-expiring-documents` e `send-pending-notifications` exigem o header
 `x-cron-secret`. As demais validam JWT manualmente via `auth.getUser()` — o
 `verify_jwt = false` no `config.toml` é compensado no código.
+
+## Planos e limites
+
+FREE = 1 documento ativo · INDIVIDUAL R$ 9,90 · MEI R$ 19,89 (+ tipos `alvara`, `certidao`,
+`das_mei`) · FAMILIAR R$ 29,89 (até 4 pessoas, cada uma com conta própria; convite por e-mail).
+Catálogo em `src/lib/planos.ts`; verdade do plano em `profiles.plan_type` (escrita só pelo
+servidor) e `plano_efetivo()` no banco (migration `20260915120000_planos_e_familia.sql`), que
+inclui o plano herdado da família. O front chama `rpc('meu_plano')` e cai em `plan_type` se a
+função não existir. Ao bater o limite, `PlanosModal` abre na hora (Dashboard, AddDocumentModal e
+Onboarding). Stripe: `create-checkout` (`{ plano }`), `customer-portal`, `check-subscription`,
+`stripe-webhook`; família: `convidar-familiar`, `aceitar-convite`. Regra 9 em `docs/SEGURANCA.md`.
+
+## Páginas legais e suporte
+
+`src/lib/public-content.ts` → `support` é o único interruptor de publicação: enquanto
+`controller` ou `email` forem `null`, a landing mostra "prazo em definição" e `/privacidade`
+e `/termos` exibem o aviso de minuta. Preencha com dados reais antes de lançar; nunca com
+placeholders. A recuperação de senha exige `<APP_URL>/redefinir-senha` na lista de Redirect
+URLs do painel do Supabase (Authentication → URL Configuration).
 
 ## Variáveis
 

@@ -103,6 +103,60 @@ export type Database = {
         }
         Relationships: []
       }
+      familias: {
+        Row: {
+          criado_em: string
+          id: string
+          titular_id: string
+        }
+        Insert: {
+          criado_em?: string
+          id?: string
+          titular_id: string
+        }
+        Update: {
+          criado_em?: string
+          id?: string
+          titular_id?: string
+        }
+        Relationships: []
+      }
+      familia_membros: {
+        Row: {
+          aceito_em: string | null
+          criado_em: string
+          email: string
+          expira_em: string | null
+          familia_id: string
+          id: string
+          status: string
+          token_hash: string | null
+          user_id: string | null
+        }
+        Insert: {
+          aceito_em?: string | null
+          criado_em?: string
+          email: string
+          expira_em?: string | null
+          familia_id: string
+          id?: string
+          status?: string
+          token_hash?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          aceito_em?: string | null
+          criado_em?: string
+          email?: string
+          expira_em?: string | null
+          familia_id?: string
+          id?: string
+          status?: string
+          token_hash?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           atualizado_em: string
@@ -195,52 +249,85 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          bairro: string | null
+          cep: string | null
+          cidade: string | null
+          complemento: string | null
           cpf: string | null
           criado_em: string
           email: string | null
+          endereco_atualizado_em: string | null
+          ibge: string | null
           id: string
+          latitude: number | null
+          logradouro: string | null
+          longitude: number | null
           nome: string | null
           notification_email: boolean
           notification_hour: number
           notification_whatsapp: boolean
+          numero: string | null
           onboarding_completed: boolean
           plan_type: string
           stripe_customer_id: string | null
           telefone: string | null
+          uf: string | null
           user_id: string
           whatsapp_number: string | null
         }
         Insert: {
           avatar_url?: string | null
+          bairro?: string | null
+          cep?: string | null
+          cidade?: string | null
+          complemento?: string | null
           cpf?: string | null
           criado_em?: string
           email?: string | null
+          endereco_atualizado_em?: string | null
+          ibge?: string | null
           id?: string
+          latitude?: number | null
+          logradouro?: string | null
+          longitude?: number | null
           nome?: string | null
           notification_email?: boolean
           notification_hour?: number
           notification_whatsapp?: boolean
+          numero?: string | null
           onboarding_completed?: boolean
           plan_type?: string
           stripe_customer_id?: string | null
           telefone?: string | null
+          uf?: string | null
           user_id: string
           whatsapp_number?: string | null
         }
         Update: {
           avatar_url?: string | null
+          bairro?: string | null
+          cep?: string | null
+          cidade?: string | null
+          complemento?: string | null
           cpf?: string | null
           criado_em?: string
           email?: string | null
+          endereco_atualizado_em?: string | null
+          ibge?: string | null
           id?: string
+          latitude?: number | null
+          logradouro?: string | null
+          longitude?: number | null
           nome?: string | null
           notification_email?: boolean
           notification_hour?: number
           notification_whatsapp?: boolean
+          numero?: string | null
           onboarding_completed?: boolean
           plan_type?: string
           stripe_customer_id?: string | null
           telefone?: string | null
+          uf?: string | null
           user_id?: string
           whatsapp_number?: string | null
         }
@@ -335,6 +422,24 @@ export type Database = {
           },
         ]
       }
+      stripe_events: {
+        Row: {
+          id: string
+          recebido_em: string
+          tipo: string
+        }
+        Insert: {
+          id: string
+          recebido_em?: string
+          tipo: string
+        }
+        Update: {
+          id?: string
+          recebido_em?: string
+          tipo?: string
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           atualizado_em: string
@@ -379,7 +484,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      meu_plano: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      minha_familia: {
+        Args: Record<PropertyKey, never>
+        Returns: { papel: string; familia_id: string; titular_nome: string | null }[]
+      }
     }
     Enums: {
       [_ in never]: never

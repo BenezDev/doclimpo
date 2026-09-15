@@ -1,9 +1,5 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { corsHeaders } from "../_shared/cors.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -55,6 +51,23 @@ Deno.serve(async (req) => {
     const destinatario = user.email;
     if (!destinatario) throw new Error("Usuário sem email cadastrado");
 
+    // Rate-limit: no máximo 1 e-mail de teste por minuto por usuário — sem isso
+    // um laço na função vira abuso de envio (custo/reputação no Resend).
+    const umMinutoAtras = new Date(Date.now() - 60000).toISOString();
+    const { data: recentes } = await supabase
+      .from("notifications")
+      .select("id")
+      .eq("usuario_id", user.id)
+      .gte("sent_date", umMinutoAtras)
+      .ilike("content", "Notificação de teste%")
+      .limit(1);
+    if (recentes && recentes.length > 0) {
+      return new Response(
+        JSON.stringify({ error: "Aguarde um minuto antes de enviar outro teste." }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     // Envia de verdade antes de registrar. Antes desta correção a função
     // gravava status "SENT" sem mandar nada — um teste que passava mentindo.
     const envio = await fetch("https://api.resend.com/emails", {
@@ -64,10 +77,10 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: Deno.env.get("EMAIL_FROM") ?? "DocAlert <alertas@docalert.com.br>",
+        from: Deno.env.get("EMAIL_FROM") ?? "DocLimpo <alertas@docalert.com.br>",
         to: [destinatario],
-        subject: "DocAlert — notificação de teste",
-        html: `<p>Está funcionando. 🎉</p><p>Se você recebeu este email, os alertas do DocAlert estão configurados corretamente.</p>`,
+        subject: "DocLimpo — notificação de teste",
+        html: `<p>Está funcionando. 🎉</p><p>Se você recebeu este email, os alertas do DocLimpo estão configurados corretamente.</p>`,
       }),
     });
 

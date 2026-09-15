@@ -1,10 +1,6 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-cron-secret",
-};
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { corsHeaders } from "../_shared/cors.ts";
+import { compararSegredo } from "../_shared/seguranca.ts";
 
 // Janelas alinhadas com o que a interface promete ao usuário (90/30/7),
 // mais um lembrete na véspera. Antes o código usava 30/15/7/3/1, que não
@@ -20,7 +16,7 @@ Deno.serve(async (req) => {
     // Esta função varre e atualiza a base inteira com a service role key.
     // Sem esta checagem ela era publicamente invocável por qualquer um.
     const cronSecret = Deno.env.get("CRON_SECRET");
-    if (!cronSecret || req.headers.get("x-cron-secret") !== cronSecret) {
+    if (!cronSecret || !compararSegredo(req.headers.get("x-cron-secret") ?? "", cronSecret)) {
       return new Response(JSON.stringify({ error: "Não autorizado" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

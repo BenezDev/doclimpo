@@ -1,5 +1,74 @@
 {
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/" }
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "routes": [
+    {
+      "src": "/(.*)",
+      "headers": {
+        "Content-Security-Policy-Report-Only": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://*.supabase.co https://viacep.com.br; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'",
+        "X-Frame-Options": "DENY",
+        "X-Content-Type-Options": "nosniff",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
+        "Permissions-Policy": "geolocation=(), camera=(), microphone=(), payment=()"
+      },
+      "continue": true
+    },
+    {
+      "src": "/",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/cadastro/?",
+      "dest": "/cadastro/index.html"
+    },
+    {
+      "src": "/login/?",
+      "dest": "/login/index.html"
+    },
+    {
+      "src": "/obrigado/?",
+      "dest": "/obrigado/index.html"
+    },
+    {
+      "src": "/privacidade/?",
+      "dest": "/privacidade/index.html"
+    },
+    {
+      "src": "/termos/?",
+      "dest": "/termos/index.html"
+    },
+    {
+      "src": "/redefinir-senha/?",
+      "dest": "/redefinir-senha/index.html"
+    },
+    {
+      "src": "/onboarding/?",
+      "dest": "/onboarding/index.html"
+    },
+    {
+      "src": "/dashboard/?",
+      "dest": "/dashboard/index.html"
+    },
+    {
+      "src": "/conta/?",
+      "dest": "/conta/index.html"
+    },
+    {
+      "src": "/documento/[^/]+/?",
+      "dest": "/documento/index.html"
+    },
+    {
+      "src": "/404(?:\\.html)?/?",
+      "dest": "/404.html",
+      "status": 404
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/.*",
+      "dest": "/404.html",
+      "status": 404
+    }
   ]
 }

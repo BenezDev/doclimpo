@@ -1,47 +1,99 @@
-import { useState } from 'react'
-import { supabase } from '../../integrations/supabase/client'
+import { motion, useReducedMotion } from 'framer-motion'
+import { ArrowLeft, ArrowRight, CircleAlert, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../../hooks/useAuth'
+import { supabase } from '../../integrations/supabase/client'
 import { interpretarErro, textoDaFalha, type FalhaAoSalvar } from '../../lib/erros'
-
-const ACCENT = '#4361ee'
+import { documentoSchema } from '../../lib/validacao'
+import { bezelSpring } from '../../lib/motion'
+import { Button, DocumentGlyph } from './Bezel'
 
 const TIPOS = [
-  { id: 'cnh', label: 'CNH', icon: '🪪' },
-  { id: 'crlv', label: 'CRLV', icon: '🚗' },
-  { id: 'ipva', label: 'IPVA', icon: '📋' },
-  { id: 'passaporte', label: 'Passaporte', icon: '✈️' },
-  { id: 'rg', label: 'RG', icon: '🪪' },
-  { id: 'seguro', label: 'Seguro Auto', icon: '🛡️' },
-  { id: 'plano_saude', label: 'Plano de Saude', icon: '🏥' },
-  { id: 'carteira_trabalho', label: 'Carteira de Trabalho', icon: '💼' },
-  { id: 'outro', label: 'Outro', icon: '📄' },
+  { id: 'cnh', label: 'CNH', description: 'Carteira de motorista' },
+  { id: 'crlv', label: 'CRLV', description: 'Documento do veículo' },
+  { id: 'ipva', label: 'IPVA', description: 'Imposto do veículo' },
+  { id: 'passaporte', label: 'Passaporte', description: 'Documento de viagem' },
+  { id: 'rg', label: 'RG', description: 'Identidade' },
+  { id: 'seguro', label: 'Seguro auto', description: 'Apólice do veículo' },
+  { id: 'plano_saude', label: 'Plano de saúde', description: 'Plano médico' },
+  { id: 'carteira_trabalho', label: 'Carteira de trabalho', description: 'CTPS' },
+  { id: 'alvara', label: 'Alvará', description: 'Funcionamento da empresa', empresarial: true },
+  { id: 'certidao', label: 'Certidão negativa', description: 'Receita, FGTS, trabalhista', empresarial: true },
+  { id: 'das_mei', label: 'DAS-MEI', description: 'Guia mensal do MEI', empresarial: true },
+  { id: 'outro', label: 'Outro', description: 'Outro documento' },
 ]
 
 interface Props {
   dark: boolean
   onClose: () => void
   onSuccess: () => void
+  // Chamado quando o banco recusa por limite do plano (trigger enforce_plan_limits):
+  // o pai abre a assinatura em vez de mostrar texto.
+  onLimite?: () => void
+  // Tipos empresariais aparecem só para quem pode usá-los (plano MEI).
+  mostrarEmpresariais?: boolean
 }
 
-export function AddDocumentModal({ dark, onClose, onSuccess }: Props) {
+export function AddDocumentModal(props: Props) {
+  const { onClose, onSuccess, onLimite, mostrarEmpresariais = false } = props
+  const tipos = TIPOS.filter(item => mostrarEmpresariais || !item.empresarial)
   const { user } = useAuth()
+  const reduceMotion = useReducedMotion()
+  const dialogRef = useRef<HTMLDivElement>(null)
   const [step, setStep] = useState(1)
   const [tipo, setTipo] = useState('')
   const [apelido, setApelido] = useState('')
   const [data, setData] = useState('')
   const [loading, setLoading] = useState(false)
   const [falha, setFalha] = useState<FalhaAoSalvar | null>(null)
+  const selectedDocument = tipos.find(item => item.id === tipo)
 
-  const surface = dark ? '#0e0e18' : '#ffffff'
-  const bg = dark ? '#09090f' : '#f8f9fc'
-  const border = dark ? '#ffffff0f' : '#e2e8f0'
-  const text = dark ? '#e8edf5' : '#0f172a'
-  const muted = dark ? '#4a5568' : '#64748b'
+  useEffect(() => {
+    const previousFocus = document.activeElement as HTMLElement | null
+    const dialog = dialogRef.current
+    const focusableSelector = 'button:not(:disabled), input:not(:disabled), [href], [tabindex]:not([tabindex="-1"])'
+    const firstFocusable = dialog?.querySelector<HTMLElement>(focusableSelector)
+    firstFocusable?.focus()
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose()
+        return
+      }
+
+      if (event.key !== 'Tab' || !dialog) return
+      const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(focusableSelector))
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (!first || !last) return
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      previousFocus?.focus()
+    }
+  }, [onClose])
 
   const handleSalvar = async () => {
     if (!tipo || !data || !user) return
     setLoading(true)
     setFalha(null)
+
+    const validado = documentoSchema.safeParse({ tipo, apelido, data_vencimento: data })
+    if (!validado.success) {
+      setFalha({ tipo: 'generico', mensagem: validado.error.issues[0]?.message ?? 'Dados inválidos.' })
+      setLoading(false)
+      return
+    }
 
     const { error } = await supabase.from('documentos').insert({
       usuario_id: user.id,
@@ -51,8 +103,10 @@ export function AddDocumentModal({ dark, onClose, onSuccess }: Props) {
     })
 
     if (error) {
-      setFalha(interpretarErro(error))
+      const falhaAoSalvar = interpretarErro(error)
       setLoading(false)
+      if (falhaAoSalvar?.tipo === 'limite_plano' && onLimite) { onLimite(); return }
+      setFalha(falhaAoSalvar)
       return
     }
 
@@ -61,117 +115,96 @@ export function AddDocumentModal({ dark, onClose, onSuccess }: Props) {
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, backdropFilter: 'blur(4px)' }}>
-      <div style={{ background: surface, border: `1px solid ${border}`, borderRadius: 16, width: '100%', maxWidth: 520, boxShadow: '0 24px 64px rgba(0,0,0,0.2)' }}>
-
-        {/* HEADER */}
-        <div style={{ padding: '24px 28px', borderBottom: `1px solid ${border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <motion.div
+      className="bz-modal-layer"
+      initial={reduceMotion ? undefined : { opacity: 0 }}
+      animate={reduceMotion ? undefined : { opacity: 1 }}
+      transition={reduceMotion ? undefined : { duration: 0.22 }}
+      onMouseDown={event => event.target === event.currentTarget && onClose()}
+    >
+      <motion.div
+        className="bz-modal"
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="add-document-title"
+        initial={reduceMotion ? undefined : { opacity: 0, scale: 0.96, y: 8 }}
+        animate={reduceMotion ? undefined : { opacity: 1, scale: 1, y: 0 }}
+        transition={reduceMotion ? undefined : bezelSpring}
+      >
+        <header className="bz-modal__header">
           <div>
-            <h2 style={{ fontSize: 18, fontWeight: 800, color: text, margin: 0, letterSpacing: '-0.3px' }}>Adicionar documento</h2>
-            <p style={{ fontSize: 13, color: muted, margin: '4px 0 0' }}>Passo {step} de 2</p>
+            <h2 id="add-document-title">Adicionar documento</h2>
+            <p>ETAPA 0{step} / 02</p>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: muted, lineHeight: 1 }}>✕</button>
-        </div>
+          <button className="bz-icon-button bz-modal__close" type="button" onClick={onClose} aria-label="Fechar">
+            <X size={18} strokeWidth={1.75} />
+          </button>
+        </header>
 
-        {/* STEP 1 — TIPO */}
-        {step === 1 && (
-          <div style={{ padding: 28 }}>
-            <p style={{ fontSize: 14, color: muted, marginBottom: 20 }}>Qual documento voce quer monitorar?</p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 24 }}>
-              {TIPOS.map(t => (
+        {step === 1 ? (
+          <div className="bz-modal__body">
+            <p className="bz-modal__lead">Qual documento você quer colocar sob vigilância?</p>
+            <div className="document-picker" role="list" aria-label="Tipos de documento">
+              {tipos.map(item => (
                 <button
-                  key={t.id}
-                  onClick={() => setTipo(t.id)}
-                  style={{
-                    background: tipo === t.id ? (dark ? '#1a2640' : '#eff3ff') : bg,
-                    border: `1px solid ${tipo === t.id ? ACCENT : border}`,
-                    borderRadius: 10,
-                    padding: '14px 10px',
-                    cursor: 'pointer',
-                    textAlign: 'center',
-                    transition: 'all 0.15s',
-                    fontFamily: 'Inter, system-ui, sans-serif',
-                  }}
+                  className={`document-option ${tipo === item.id ? 'is-selected' : ''}`}
+                  key={item.id}
+                  onClick={() => setTipo(item.id)}
+                  type="button"
+                  aria-pressed={tipo === item.id}
                 >
-                  <div style={{ fontSize: 24, marginBottom: 6 }}>{t.icon}</div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: tipo === t.id ? ACCENT : text }}>{t.label}</div>
+                  <DocumentGlyph type={item.id} size="sm" />
+                  <span>
+                    <strong>{item.label}</strong>
+                    <small>{item.description}</small>
+                  </span>
                 </button>
               ))}
             </div>
-            <button
-              onClick={() => tipo && setStep(2)}
-              disabled={!tipo}
-              style={{ width: '100%', padding: 13, background: tipo ? ACCENT : (dark ? '#1a1a2e' : '#e2e8f0'), color: tipo ? '#fff' : muted, border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: tipo ? 'pointer' : 'not-allowed', fontFamily: 'Inter, system-ui, sans-serif', transition: 'all 0.15s' }}
-            >
-              Continuar →
-            </button>
-          </div>
-        )}
-
-        {/* STEP 2 — DATA */}
-        {step === 2 && (
-          <div style={{ padding: 28 }}>
-            <p style={{ fontSize: 14, color: muted, marginBottom: 24 }}>
-              Documento selecionado: <strong style={{ color: text }}>{TIPOS.find(t => t.id === tipo)?.icon} {TIPOS.find(t => t.id === tipo)?.label}</strong>
-            </p>
-
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: text, marginBottom: 6 }}>Data de vencimento</label>
-              <input
-                type="date"
-                value={data}
-                onChange={e => setData(e.target.value)}
-                style={{ width: '100%', padding: '11px 14px', borderRadius: 8, border: `1px solid ${border}`, fontSize: 14, background: bg, color: text, outline: 'none', boxSizing: 'border-box', fontFamily: 'Inter, system-ui, sans-serif' }}
-              />
+            <div className="bz-modal__actions">
+              <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+              <Button variant="primary" disabled={!tipo} onClick={() => setStep(2)} icon={<ArrowRight size={16} strokeWidth={1.75} />}>
+                Continuar
+              </Button>
             </div>
-
-            <div style={{ marginBottom: 24 }}>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: text, marginBottom: 6 }}>
-                Apelido <span style={{ fontWeight: 400, color: muted }}>(opcional)</span>
-              </label>
+          </div>
+        ) : (
+          <div className="bz-modal__body">
+            <p className="bz-modal__lead">{selectedDocument?.label} selecionado. Agora falta a data que move todo o sistema.</p>
+            <div className="bz-field">
+              <label htmlFor="modal-data">Data de vencimento</label>
+              <input className="bz-input" id="modal-data" type="date" value={data} onChange={event => setData(event.target.value)} />
+            </div>
+            <div className="bz-field">
+              <label htmlFor="modal-apelido">Apelido <span className="bz-field__optional">(opcional)</span></label>
               <input
+                className="bz-input"
+                id="modal-apelido"
                 type="text"
+                maxLength={80}
                 value={apelido}
-                onChange={e => setApelido(e.target.value)}
-                placeholder='Ex: "CNH do Joao"'
-                style={{ width: '100%', padding: '11px 14px', borderRadius: 8, border: `1px solid ${border}`, fontSize: 14, background: bg, color: text, outline: 'none', boxSizing: 'border-box', fontFamily: 'Inter, system-ui, sans-serif' }}
+                onChange={event => setApelido(event.target.value)}
+                placeholder={`Ex.: ${selectedDocument?.label} principal`}
               />
             </div>
 
             {falha && (
-              <div style={{ background: falha.tipo === 'limite_plano' ? (dark ? '#1a2640' : '#eff3ff') : '#fef2f2', border: `1px solid ${falha.tipo === 'limite_plano' ? (dark ? '#4361ee40' : '#c7d7fd') : '#fecaca'}`, borderRadius: 8, padding: '12px 14px', marginBottom: 16 }}>
-                <p style={{ fontSize: 13, color: falha.tipo === 'limite_plano' ? (dark ? '#a5b4fc' : '#4338ca') : '#dc2626', margin: 0, lineHeight: 1.6 }}>
-                  {textoDaFalha(falha)}
-                </p>
-                {falha.tipo === 'limite_plano' && (
-                  <button
-                    onClick={onClose}
-                    style={{ marginTop: 10, padding: '8px 14px', background: ACCENT, color: '#fff', border: 'none', borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'Inter, system-ui, sans-serif' }}
-                  >
-                    Fazer upgrade
-                  </button>
-                )}
+              <div className={`bz-feedback ${falha.tipo === 'limite_plano' ? 'bz-feedback--info' : 'bz-feedback--danger'}`} role="alert">
+                <CircleAlert size={17} strokeWidth={1.75} aria-hidden="true" />
+                <p>{textoDaFalha(falha)}</p>
               </div>
             )}
 
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button
-                onClick={() => setStep(1)}
-                style={{ flex: 1, padding: 13, background: 'none', border: `1px solid ${border}`, borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer', color: text, fontFamily: 'Inter, system-ui, sans-serif' }}
-              >
-                ← Voltar
-              </button>
-              <button
-                onClick={handleSalvar}
-                disabled={!data || loading}
-                style={{ flex: 2, padding: 13, background: data && !loading ? ACCENT : (dark ? '#1a1a2e' : '#e2e8f0'), color: data && !loading ? '#fff' : muted, border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: data && !loading ? 'pointer' : 'not-allowed', fontFamily: 'Inter, system-ui, sans-serif', transition: 'all 0.15s' }}
-              >
-                {loading ? 'Salvando...' : 'Salvar documento'}
-              </button>
+            <div className="bz-modal__actions">
+              <Button variant="secondary" onClick={() => setStep(1)} icon={<ArrowLeft size={16} strokeWidth={1.75} />}>Voltar</Button>
+              <Button variant="primary" disabled={!data || loading} onClick={handleSalvar}>
+                {loading ? 'Salvando…' : 'Salvar documento'}
+              </Button>
             </div>
           </div>
         )}
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   )
 }

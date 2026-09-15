@@ -1,176 +1,245 @@
+import { motion, useReducedMotion } from 'framer-motion'
+import { BellRing, CircleAlert, FileText, LockKeyhole, MailCheck, ShieldCheck } from 'lucide-react'
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Brand, Button, ThemeToggle } from '../components/ui/Bezel'
+import { useTheme } from '../hooks/useTheme'
 import { supabase } from '../integrations/supabase/client'
+import { bezelSpring, fadeUp } from '../lib/motion'
+import { useAuth } from '../hooks/useAuth'
+import { documentIntent, withDocumentIntent } from '../lib/public-content'
+import { requestPasswordReset, submitAccess } from '../lib/access-flow'
 
-export default function Login() {
+const accessBenefits = [
+  {
+    icon: FileText,
+    title: 'Documentos em um único lugar',
+    description: 'CNH, CRLV, passaporte, IPVA e outros prazos.',
+  },
+  {
+    icon: BellRing,
+    title: 'Alertas antes do vencimento',
+    description: 'Janelas de 90, 30, 7 e 1 dia por e-mail.',
+  },
+  {
+    icon: ShieldCheck,
+    title: 'Acesso isolado por usuário',
+    description: 'Cada conta enxerga somente os próprios documentos.',
+  },
+]
+
+export default function Login({ isCadastro = false }: { isCadastro?: boolean }) {
   const navigate = useNavigate()
-  const [dark, setDark] = useState(false)
-  const [isCadastro, setIsCadastro] = useState(false)
+  const { search } = useLocation()
+  const { user, loading: authLoading } = useAuth()
+  const reduceMotion = useReducedMotion()
+  const { dark, toggleTheme } = useTheme()
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
   const [nome, setNome] = useState('')
   const [loading, setLoading] = useState(false)
   const [erro, setErro] = useState('')
+  const [recuperando, setRecuperando] = useState(false)
+  const [linkEnviado, setLinkEnviado] = useState(false)
 
-  const bg = dark ? '#09090f' : '#ffffff'
-  const bg2 = dark ? '#0e0e18' : '#f8f9fc'
-  const border = dark ? '#ffffff0f' : '#e2e8f0'
-  const text = dark ? '#e8edf5' : '#0f172a'
-  const muted = dark ? '#4a5568' : '#64748b'
-  const card = dark ? '#0e0e18' : '#ffffff'
-  const ACCENT = '#4361ee'
+  const selectMode = (cadastro: boolean) => {
+    navigate(withDocumentIntent(cadastro ? '/cadastro' : '/login', search))
+    setErro('')
+    setRecuperando(false)
+    setLinkEnviado(false)
+  }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleRecuperar = async (event: React.FormEvent) => {
+    event.preventDefault()
+    setLoading(true)
+    setErro('')
+    const result = await requestPasswordReset(supabase.auth, { email, origin: window.location.origin })
+    setLoading(false)
+    if ('error' in result) setErro(result.error)
+    else setLinkEnviado(true)
+  }
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault()
     setLoading(true)
     setErro('')
 
-    if (isCadastro) {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password: senha,
-        options: { data: { nome } }
-      })
-      if (error) {
-  setErro(error.message)
-} else {
-  setTimeout(() => navigate('/onboarding'), 500)
-}
+    const result = await submitAccess(supabase.auth, { signup: isCadastro, email, password: senha, name: nome, search })
+    if ('error' in result) {
+      setErro(result.error)
+      setLoading(false)
     } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password: senha })
-      if (error) setErro('Email ou senha incorretos.')
+      // Keep the auth guard suspended until the lazy destination commits.
+      navigate(result.to, { replace: true, state: result.state })
     }
-
-    setLoading(false)
   }
 
+  if (user && !loading) return <Navigate to={withDocumentIntent(documentIntent(search) ? '/onboarding' : '/dashboard', search)} replace />
+
   return (
-    <div style={{ fontFamily: 'Inter, system-ui, sans-serif', background: bg, minHeight: '100vh', display: 'flex', flexDirection: 'column', transition: 'background 0.3s' }}>
+    <div className="bz-page auth-page">
+      <header className="auth-topbar">
+        <div className="bz-container--wide auth-topbar__inner">
+          <Link className="auth-brand-button brand-link" to="/" aria-label="Voltar para a página inicial">
+            <Brand />
+          </Link>
+          <ThemeToggle dark={dark} onToggle={toggleTheme} />
+        </div>
+      </header>
 
-      {/* NAV */}
-      <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 48px', borderBottom: `1px solid ${border}` }}>
-        <span onClick={() => navigate('/')} style={{ fontSize: 18, fontWeight: 800, cursor: 'pointer' }}>
-          Doc<span style={{ color: ACCENT }}>Alert</span>
-        </span>
-        <button onClick={() => setDark(d => !d)} style={{ background: 'none', border: `1px solid ${border}`, borderRadius: 8, padding: '7px 12px', cursor: 'pointer', color: muted, fontSize: 16 }}>
-          {dark ? '☀️' : '🌙'}
-        </button>
-      </nav>
-
-      {/* CONTEUDO */}
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 24px' }}>
-        <div style={{ width: '100%', maxWidth: 420 }}>
-
-          {/* CARD */}
-          <div style={{ background: card, border: `1px solid ${border}`, borderRadius: 16, padding: '40px 36px', boxShadow: dark ? 'none' : '0 4px 24px rgba(0,0,0,0.06)' }}>
-
-            <div style={{ marginBottom: 28 }}>
-              <h1 style={{ fontSize: 24, fontWeight: 800, letterSpacing: '-0.5px', color: text, marginBottom: 6 }}>
-                {isCadastro ? 'Criar sua conta' : 'Bem-vindo de volta'}
-              </h1>
-              <p style={{ fontSize: 14, color: muted }}>
-                {isCadastro ? 'Gratis para sempre no plano basico. Sem cartao.' : 'Entre na sua conta para continuar.'}
-              </p>
+      <div className="auth-layout">
+        <main className="auth-main">
+          <motion.div className="auth-main__inner" {...(reduceMotion ? {} : fadeUp)}>
+            <div className="auth-intro">
+              <span className="bz-micro">Acesso seguro</span>
+              <h1>{recuperando ? 'Recupere seu acesso.' : isCadastro ? 'Crie sua conta.' : 'Continue de onde parou.'}</h1>
+              <p>{recuperando ? 'Enviamos um link para você definir uma nova senha.' : isCadastro ? 'O primeiro documento é gratuito. Sem cartão.' : 'Entre para consultar seus próximos vencimentos.'}</p>
             </div>
 
-            <form onSubmit={handleSubmit}>
-              {isCadastro && (
-                <div style={{ marginBottom: 16 }}>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: text, marginBottom: 6 }}>Nome completo</label>
-                  <input
-                    type="text"
-                    value={nome}
-                    onChange={e => setNome(e.target.value)}
-                    placeholder="Seu nome"
-                    required
-                    style={{ width: '100%', padding: '11px 14px', borderRadius: 8, border: `1px solid ${border}`, fontSize: 14, background: bg, color: text, outline: 'none', boxSizing: 'border-box', fontFamily: 'Inter, system-ui, sans-serif' }}
-                  />
-                </div>
-              )}
-
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: text, marginBottom: 6 }}>Email</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  placeholder="seu@email.com"
-                  required
-                  style={{ width: '100%', padding: '11px 14px', borderRadius: 8, border: `1px solid ${border}`, fontSize: 14, background: bg, color: text, outline: 'none', boxSizing: 'border-box', fontFamily: 'Inter, system-ui, sans-serif' }}
-                />
+            <div className="auth-panel">
+              <div className="auth-segment" aria-label="Escolha entre entrar e criar conta">
+                <button type="button" disabled={loading} onClick={() => selectMode(false)} aria-pressed={!isCadastro}>
+                  {!isCadastro && <motion.span className="auth-segment__active" layoutId="auth-mode" transition={bezelSpring} />}
+                  <span>Entrar</span>
+                </button>
+                <button type="button" disabled={loading} onClick={() => selectMode(true)} aria-pressed={isCadastro}>
+                  {isCadastro && <motion.span className="auth-segment__active" layoutId="auth-mode" transition={bezelSpring} />}
+                  <span>Criar conta</span>
+                </button>
               </div>
 
-              <div style={{ marginBottom: 24 }}>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: text, marginBottom: 6 }}>Senha</label>
-                <input
-                  type="password"
-                  value={senha}
-                  onChange={e => setSenha(e.target.value)}
-                  placeholder="Minimo 6 caracteres"
-                  required
-                  style={{ width: '100%', padding: '11px 14px', borderRadius: 8, border: `1px solid ${border}`, fontSize: 14, background: bg, color: text, outline: 'none', boxSizing: 'border-box', fontFamily: 'Inter, system-ui, sans-serif' }}
-                />
-              </div>
+              {recuperando ? (
+                <form onSubmit={handleRecuperar}>
+                  <div className="bz-field">
+                    <label htmlFor="email-recuperacao">E-mail da conta</label>
+                    <input
+                      className="bz-input"
+                      id="email-recuperacao"
+                      type="email"
+                      value={email}
+                      onChange={event => setEmail(event.target.value)}
+                      placeholder="voce@exemplo.com"
+                      autoComplete="email"
+                      required
+                    />
+                  </div>
 
-              {erro && (
-                <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', marginBottom: 16 }}>
-                  <p style={{ fontSize: 13, color: '#dc2626', margin: 0 }}>{erro}</p>
-                </div>
+                  {linkEnviado && (
+                    <div className="bz-feedback bz-feedback--success" role="status">
+                      <MailCheck size={17} strokeWidth={1.75} aria-hidden="true" />
+                      <p>Se o e-mail estiver cadastrado, o link de redefinição chega em instantes. Confira também a pasta de spam.</p>
+                    </div>
+                  )}
+
+                  {erro && (
+                    <div className="bz-feedback bz-feedback--danger" role="alert">
+                      <CircleAlert size={17} strokeWidth={1.75} aria-hidden="true" />
+                      <p>{erro}</p>
+                    </div>
+                  )}
+
+                  <Button className="auth-submit" type="submit" variant="primary" size="lg" disabled={loading || linkEnviado}>
+                    {loading ? 'Aguarde…' : linkEnviado ? 'Link enviado' : 'Enviar link de redefinição'}
+                  </Button>
+                  <button className="auth-link" type="button" onClick={() => { setRecuperando(false); setErro(''); setLinkEnviado(false) }}>
+                    Voltar para entrar
+                  </button>
+                </form>
+              ) : (
+              <form onSubmit={handleSubmit}>
+                  {isCadastro && (
+                    <div className="bz-field">
+                      <label htmlFor="nome">Nome completo</label>
+                      <input
+                        className="bz-input"
+                        id="nome"
+                        type="text"
+                        value={nome}
+                        onChange={event => setNome(event.target.value)}
+                        placeholder="Seu nome"
+                        autoComplete="name"
+                        required
+                      />
+                    </div>
+                  )}
+
+                  <div className="bz-field">
+                    <label htmlFor="email">E-mail</label>
+                    <input
+                      className="bz-input"
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={event => setEmail(event.target.value)}
+                      placeholder="voce@exemplo.com"
+                      autoComplete="email"
+                      required
+                    />
+                  </div>
+
+                  <div className="bz-field">
+                    <label htmlFor="senha">Senha</label>
+                    <input
+                      className="bz-input"
+                      id="senha"
+                      type="password"
+                      value={senha}
+                      onChange={event => setSenha(event.target.value)}
+                      placeholder="Mínimo de 6 caracteres"
+                      autoComplete={isCadastro ? 'new-password' : 'current-password'}
+                      minLength={6}
+                      required
+                    />
+                  </div>
+
+                  {!isCadastro && (
+                    <button className="auth-link auth-link--inline" type="button" onClick={() => { setRecuperando(true); setErro('') }}>
+                      Esqueci minha senha
+                    </button>
+                  )}
+
+                  {erro && (
+                    <div className="bz-feedback bz-feedback--danger" role="alert">
+                      <CircleAlert size={17} strokeWidth={1.75} aria-hidden="true" />
+                      <p>{erro}</p>
+                    </div>
+                  )}
+
+                  <Button className="auth-submit" type="submit" variant="primary" size="lg" disabled={loading || authLoading}>
+                    {loading ? 'Aguarde…' : isCadastro ? 'Criar conta gratuita' : 'Entrar no painel'}
+                  </Button>
+                  {isCadastro && <p className="auth-policy">Veja como seus dados são utilizados na <Link to="/privacidade">política de privacidade</Link>.</p>}
+                </form>
               )}
+            </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                style={{ width: '100%', padding: '13px', background: loading ? '#6b7280' : ACCENT, color: '#fff', border: 'none', borderRadius: 8, fontSize: 15, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', transition: 'background 0.15s', fontFamily: 'Inter, system-ui, sans-serif' }}
-              >
-                {loading ? 'Aguarde...' : isCadastro ? 'Criar conta gratis' : 'Entrar'}
-              </button>
-            </form>
+            <div className="auth-trust" aria-label="Informações de segurança">
+              <span><LockKeyhole size={14} strokeWidth={1.75} />Conexão protegida</span>
+              <span><ShieldCheck size={14} strokeWidth={1.75} />Controle de acesso por conta</span>
+            </div>
+          </motion.div>
+        </main>
 
-            <p style={{ textAlign: 'center', marginTop: 20, fontSize: 14, color: muted }}>
-              {isCadastro ? 'Ja tem conta?' : 'Nao tem conta?'}{' '}
-              <span onClick={() => { setIsCadastro(!isCadastro); setErro('') }} style={{ color: ACCENT, fontWeight: 700, cursor: 'pointer' }}>
-                {isCadastro ? 'Entrar' : 'Criar gratis'}
-              </span>
-            </p>
-          </div>
-
-          {/* TRUST */}
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 20, marginTop: 24, flexWrap: 'wrap' }}>
-            {['🔒 SSL', '🇧🇷 LGPD', '🔐 Sem spam'].map(t => (
-              <span key={t} style={{ fontSize: 13, color: muted }}>{t}</span>
+        <aside className="auth-aside" aria-label="Como o DocLimpo funciona">
+          <span className="bz-micro">O que acontece depois</span>
+          <h2>Menos uma data para carregar na cabeça.</h2>
+          <div className="auth-aside__list">
+            {accessBenefits.map(({ icon: Icon, title, description }) => (
+              <div className="auth-aside__item" key={title}>
+                <span className="auth-aside__icon"><Icon size={20} strokeWidth={1.75} /></span>
+                <div>
+                  <strong>{title}</strong>
+                  <span>{description}</span>
+                </div>
+              </div>
             ))}
           </div>
-        </div>
-      </div>
-
-      {/* SIDE PANEL INFO (desktop) */}
-      <div style={{ position: 'fixed', right: 0, top: 0, bottom: 0, width: 380, background: bg2, borderLeft: `1px solid ${border}`, padding: '80px 40px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 24 }}>
-        <div>
-          <p style={{ fontSize: 11, fontWeight: 700, color: ACCENT, letterSpacing: 2, textTransform: 'uppercase' as const, marginBottom: 10 }}>Por que usar o DocAlert?</p>
-          <h2 style={{ fontSize: 24, fontWeight: 800, color: text, letterSpacing: '-0.5px', lineHeight: 1.2, marginBottom: 24 }}>Proteja seus documentos antes que seja tarde</h2>
-        </div>
-        {[
-          { icon: '📄', title: 'CNH, CRLV, Passaporte e mais', desc: '11 tipos de documentos monitorados' },
-          { icon: '🔔', title: 'Alertas 90, 30 e 7 dias antes', desc: 'Por email e WhatsApp' },
-          { icon: '💸', title: 'Evite multas de ate R$ 5.000', desc: 'Calcule o custo antes de esquecer' },
-          { icon: '🔒', title: 'Seus dados protegidos', desc: 'Criptografia SSL + conformidade LGPD' },
-        ].map(item => (
-          <div key={item.title} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-            <span style={{ fontSize: 22, flexShrink: 0 }}>{item.icon}</span>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: text, marginBottom: 2 }}>{item.title}</div>
-              <div style={{ fontSize: 13, color: muted }}>{item.desc}</div>
-            </div>
+          <div className="auth-aside__signal">
+            <span>JANELAS DE ALERTA</span>
+            <strong>90 · 30 · 7 · 1</strong>
           </div>
-        ))}
-        <div style={{ marginTop: 8, padding: '16px 20px', background: dark ? '#4361ee10' : '#eff3ff', border: `1px solid ${dark ? '#4361ee30' : '#c7d7fd'}`, borderRadius: 10 }}>
-          <p style={{ fontSize: 13, color: dark ? '#a5b4fc' : '#4338ca', margin: 0, lineHeight: 1.6 }}>
-            "Quase perdi minha viagem por passaporte vencido. O DocAlert me salvou." — Mariana S., SP
-          </p>
-        </div>
+        </aside>
       </div>
-
     </div>
   )
 }

@@ -1,39 +1,66 @@
- import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { ArrowLeft, ArrowRight, BellRing, CircleAlert } from 'lucide-react'
+import { useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { Brand, Button, DocumentGlyph, SuccessMark, ThemeToggle } from '../components/ui/Bezel'
+import { EnderecoModal } from '../components/ui/EnderecoModal'
+import { PlanosModal } from '../components/ui/PlanosModal'
 import { useAuth } from '../hooks/useAuth'
+import { useTheme } from '../hooks/useTheme'
 import { supabase } from '../integrations/supabase/client'
 import { interpretarErro, textoDaFalha, type FalhaAoSalvar } from '../lib/erros'
-
-const ACCENT = '#4361ee'
+import { documentoSchema } from '../lib/validacao'
+import { documentIntent } from '../lib/public-content'
 
 const TIPOS = [
-  { id: 'cnh', label: 'CNH', icon: '🪪', desc: 'Carteira de Motorista' },
-  { id: 'crlv', label: 'CRLV', icon: '🚗', desc: 'Documento do Veiculo' },
-  { id: 'ipva', label: 'IPVA', icon: '📋', desc: 'Imposto do Veiculo' },
-  { id: 'passaporte', label: 'Passaporte', icon: '✈️', desc: 'Documento de Viagem' },
-  { id: 'rg', label: 'RG', icon: '🪪', desc: 'Identidade' },
-  { id: 'seguro', label: 'Seguro Auto', icon: '🛡️', desc: 'Seguro do Veiculo' },
-  { id: 'plano_saude', label: 'Plano de Saude', icon: '🏥', desc: 'Plano Medico' },
-  { id: 'carteira_trabalho', label: 'Carteira de Trabalho', icon: '💼', desc: 'CTPS' },
-  { id: 'outro', label: 'Outro', icon: '📄', desc: 'Outro documento' },
+  { id: 'cnh', label: 'CNH', description: 'Carteira de motorista' },
+  { id: 'crlv', label: 'CRLV', description: 'Documento do veículo' },
+  { id: 'ipva', label: 'IPVA', description: 'Imposto do veículo' },
+  { id: 'passaporte', label: 'Passaporte', description: 'Documento de viagem' },
+  { id: 'rg', label: 'RG', description: 'Identidade' },
+  { id: 'seguro', label: 'Seguro auto', description: 'Apólice do veículo' },
+  { id: 'plano_saude', label: 'Plano de saúde', description: 'Plano médico' },
+  { id: 'carteira_trabalho', label: 'Carteira de trabalho', description: 'CTPS' },
+  { id: 'outro', label: 'Outro', description: 'Outro documento' },
 ]
 
 export default function Onboarding() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const { search } = useLocation()
+  const reduceMotion = useReducedMotion()
+  const { dark, toggleTheme } = useTheme()
   const [step, setStep] = useState(1)
-  const [tipo, setTipo] = useState('')
+  const [tipo, setTipo] = useState(() => documentIntent(search))
   const [apelido, setApelido] = useState('')
   const [data, setData] = useState('')
   const [loading, setLoading] = useState(false)
   const [falha, setFalha] = useState<FalhaAoSalvar | null>(null)
+  const [mostrarEndereco, setMostrarEndereco] = useState(false)
+  const [mostrarPlanos, setMostrarPlanos] = useState(false)
 
-  const nome = user?.user_metadata?.nome || 'usuario'
+  const nome = user?.user_metadata?.nome || 'usuário'
+  const selectedDocument = TIPOS.find(item => item.id === tipo)
+  const stepMotion = reduceMotion
+    ? {}
+    : {
+        initial: { opacity: 0, y: 8 },
+        animate: { opacity: 1, y: 0 },
+        exit: { opacity: 0, y: -8 },
+        transition: { duration: 0.22, ease: [0.16, 1, 0.3, 1] as const },
+      }
 
   const handleSalvar = async () => {
     if (!tipo || !data || !user) return
     setLoading(true)
     setFalha(null)
+
+    const validado = documentoSchema.safeParse({ tipo, apelido, data_vencimento: data })
+    if (!validado.success) {
+      setFalha({ tipo: 'generico', mensagem: validado.error.issues[0]?.message ?? 'Dados inválidos.' })
+      setLoading(false)
+      return
+    }
 
     const { error } = await supabase.from('documentos').insert({
       usuario_id: user.id,
@@ -43,8 +70,11 @@ export default function Onboarding() {
     })
 
     if (error) {
-      setFalha(interpretarErro(error))
+      const falhaAoSalvar = interpretarErro(error)
       setLoading(false)
+      // Já tem um documento (limite do gratuito): abre a assinatura na hora.
+      if (falhaAoSalvar?.tipo === 'limite_plano') { setMostrarPlanos(true); return }
+      setFalha(falhaAoSalvar)
       return
     }
 
@@ -55,170 +85,144 @@ export default function Onboarding() {
 
     setLoading(false)
     setStep(3)
+    setMostrarEndereco(true)
   }
 
   return (
-    <div style={{ fontFamily: 'Inter, system-ui, sans-serif', background: '#f8f9fc', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div className="bz-page onboarding-page">
+      {mostrarEndereco && (
+        <EnderecoModal onClose={() => setMostrarEndereco(false)} onSaved={() => setMostrarEndereco(false)} />
+      )}
 
-      {/* NAV */}
-      <nav style={{ background: '#fff', borderBottom: '1px solid #e2e8f0', padding: '16px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: 18, fontWeight: 800 }}>Doc<span style={{ color: ACCENT }}>Alert</span></span>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {[1, 2, 3].map(n => (
-            <div key={n} style={{ width: 28, height: 4, borderRadius: 100, background: n <= step ? ACCENT : '#e2e8f0', transition: 'background 0.3s' }} />
-          ))}
+      {mostrarPlanos && (
+        <PlanosModal motivo="limite" onClose={() => { setMostrarPlanos(false); navigate('/dashboard') }} />
+      )}
+
+      <header className="onboarding-topbar">
+        <div className="bz-container onboarding-topbar__inner">
+          <Brand />
+          <div className="onboarding-progress" aria-label={`Etapa ${step} de 3`}>
+            {[1, 2, 3].map(item => <span className={item <= step ? 'is-active' : ''} key={item} />)}
+          </div>
+          <ThemeToggle dark={dark} onToggle={toggleTheme} />
         </div>
-      </nav>
+      </header>
 
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 24px' }}>
-        <div style={{ width: '100%', maxWidth: 560 }}>
-
-          {/* STEP 1 */}
+      <main className="onboarding-main">
+        <AnimatePresence mode="wait">
           {step === 1 && (
-            <div>
-              <p style={{ fontSize: 12, fontWeight: 700, color: ACCENT, letterSpacing: 2, textTransform: 'uppercase' as const, marginBottom: 12 }}>Passo 1 de 2</p>
-              <h1 style={{ fontSize: 32, fontWeight: 800, color: '#0f172a', letterSpacing: '-1px', marginBottom: 8, lineHeight: 1.1 }}>
-                Ola, {nome}! 👋<br />Qual documento quer monitorar primeiro?
-              </h1>
-              <p style={{ fontSize: 15, color: '#64748b', marginBottom: 32 }}>Escolha um para comecar. Voce pode adicionar mais depois.</p>
+            <motion.section className="onboarding-content" key="tipo" {...stepMotion}>
+              <div className="onboarding-header">
+                <span className="bz-micro">Etapa 01 · Documento</span>
+                <h1>Olá, {nome}. O que não pode vencer?</h1>
+                <p>Escolha o primeiro documento para monitorar. Você poderá adicionar os outros depois.</p>
+              </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 28 }}>
-                {TIPOS.map(t => (
+              <div className="document-picker" role="list" aria-label="Tipos de documento">
+                {TIPOS.map(item => (
                   <button
-                    key={t.id}
-                    onClick={() => setTipo(t.id)}
-                    style={{
-                      background: tipo === t.id ? '#eff3ff' : '#fff',
-                      border: `1px solid ${tipo === t.id ? ACCENT : '#e2e8f0'}`,
-                      borderRadius: 12,
-                      padding: '18px 12px',
-                      cursor: 'pointer',
-                      textAlign: 'center',
-                      transition: 'all 0.15s',
-                      fontFamily: 'Inter, system-ui, sans-serif',
-                    }}
+                    className={`document-option ${tipo === item.id ? 'is-selected' : ''}`}
+                    key={item.id}
+                    onClick={() => setTipo(item.id)}
+                    type="button"
+                    aria-pressed={tipo === item.id}
                   >
-                    <div style={{ fontSize: 28, marginBottom: 8 }}>{t.icon}</div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: tipo === t.id ? ACCENT : '#0f172a', marginBottom: 2 }}>{t.label}</div>
-                    <div style={{ fontSize: 11, color: '#94a3b8' }}>{t.desc}</div>
+                    <DocumentGlyph type={item.id} size="sm" />
+                    <span>
+                      <strong>{item.label}</strong>
+                      <small>{item.description}</small>
+                    </span>
                   </button>
                 ))}
               </div>
 
-              <button
-                onClick={() => tipo && setStep(2)}
-                disabled={!tipo}
-                style={{ width: '100%', padding: 14, background: tipo ? ACCENT : '#e2e8f0', color: tipo ? '#fff' : '#94a3b8', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: tipo ? 'pointer' : 'not-allowed', fontFamily: 'Inter, system-ui, sans-serif', transition: 'all 0.15s' }}
-              >
-                Continuar →
-              </button>
-
-              <button onClick={() => navigate('/dashboard')} style={{ width: '100%', marginTop: 12, padding: 12, background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#94a3b8', fontFamily: 'Inter, system-ui, sans-serif' }}>
-                Pular por agora (nao recomendado)
-              </button>
-            </div>
+              <div className="onboarding-actions">
+                <Button variant="primary" size="lg" disabled={!tipo} onClick={() => setStep(2)} icon={<ArrowRight size={17} strokeWidth={1.75} />}>
+                  Continuar
+                </Button>
+              </div>
+              <button className="onboarding-skip" type="button" onClick={() => navigate('/dashboard')}>Pular por agora</button>
+            </motion.section>
           )}
 
-          {/* STEP 2 */}
           {step === 2 && (
-            <div>
-              <p style={{ fontSize: 12, fontWeight: 700, color: ACCENT, letterSpacing: 2, textTransform: 'uppercase' as const, marginBottom: 12 }}>Passo 2 de 2</p>
-              <h1 style={{ fontSize: 32, fontWeight: 800, color: '#0f172a', letterSpacing: '-1px', marginBottom: 8 }}>
-                Quando vence seu {TIPOS.find(t => t.id === tipo)?.label}?
-              </h1>
-              <p style={{ fontSize: 15, color: '#64748b', marginBottom: 32 }}>Vamos te avisar antes para voce nunca ser pego de surpresa.</p>
+            <motion.section className="onboarding-content" key="dados" {...stepMotion}>
+              <div className="onboarding-header">
+                <span className="bz-micro">Etapa 02 · Vencimento</span>
+                <h1>Quando vence seu {selectedDocument?.label}?</h1>
+                <p>Essa é a única data que o sistema precisa para começar a trabalhar.</p>
+              </div>
 
-              <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 24, marginBottom: 20 }}>
-                <div style={{ marginBottom: 20 }}>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#0f172a', marginBottom: 8 }}>Data de vencimento</label>
+              <div className="onboarding-form-card">
+                <div className="bz-field">
+                  <label htmlFor="onboarding-data">Data de vencimento</label>
                   <input
+                    className="bz-input"
+                    id="onboarding-data"
                     type="date"
                     value={data}
-                    onChange={e => setData(e.target.value)}
-                    style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 15, background: '#f8f9fc', color: '#0f172a', outline: 'none', boxSizing: 'border-box', fontFamily: 'Inter, system-ui, sans-serif' }}
+                    onChange={event => setData(event.target.value)}
                   />
                 </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#0f172a', marginBottom: 8 }}>
-                    Apelido <span style={{ fontWeight: 400, color: '#94a3b8' }}>(opcional)</span>
-                  </label>
+                <div className="bz-field">
+                  <label htmlFor="onboarding-apelido">Apelido <span className="bz-field__optional">(opcional)</span></label>
                   <input
+                    className="bz-input"
+                    id="onboarding-apelido"
                     type="text"
+                    maxLength={80}
                     value={apelido}
-                    onChange={e => setApelido(e.target.value)}
-                    placeholder={`Ex: "${TIPOS.find(t => t.id === tipo)?.label} do ${nome}"`}
-                    style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 15, background: '#f8f9fc', color: '#0f172a', outline: 'none', boxSizing: 'border-box', fontFamily: 'Inter, system-ui, sans-serif' }}
+                    onChange={event => setApelido(event.target.value)}
+                    placeholder={`Ex.: ${selectedDocument?.label} principal`}
                   />
+                  <p className="bz-field__help">Use algo que você reconheça rápido no painel.</p>
                 </div>
               </div>
 
               {data && (
-                <div style={{ background: '#eff3ff', border: '1px solid #c7d7fd', borderRadius: 10, padding: '14px 18px', marginBottom: 20, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                  <span style={{ fontSize: 18 }}>🔔</span>
-                  <div style={{ fontSize: 13, color: '#4338ca', lineHeight: 1.6 }}>
-                    Voce vai receber alertas <strong>90 dias, 30 dias e 7 dias antes</strong> do vencimento por email.
-                  </div>
+                <div className="bz-feedback bz-feedback--info onboarding-notice">
+                  <BellRing size={17} strokeWidth={1.75} aria-hidden="true" />
+                  <p>Alertas programados para <strong className="bz-data">90 · 30 · 7 · 1</strong> dia antes do vencimento.</p>
                 </div>
               )}
 
               {falha && (
-                <div style={{ background: falha.tipo === 'limite_plano' ? '#eff3ff' : '#fef2f2', border: `1px solid ${falha.tipo === 'limite_plano' ? '#c7d7fd' : '#fecaca'}`, borderRadius: 10, padding: '14px 18px', marginBottom: 20 }}>
-                  <p style={{ fontSize: 13, color: falha.tipo === 'limite_plano' ? '#4338ca' : '#dc2626', margin: 0, lineHeight: 1.6 }}>
-                    {textoDaFalha(falha)}
-                  </p>
-                  {falha.tipo === 'limite_plano' && (
-                    <button
-                      onClick={() => navigate('/dashboard')}
-                      style={{ marginTop: 12, padding: '9px 16px', background: ACCENT, color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'Inter, system-ui, sans-serif' }}
-                    >
-                      Ver meus documentos →
-                    </button>
-                  )}
+                <div className={`bz-feedback ${falha.tipo === 'limite_plano' ? 'bz-feedback--info' : 'bz-feedback--danger'}`} role="alert">
+                  <CircleAlert size={17} strokeWidth={1.75} aria-hidden="true" />
+                  <div>
+                    <p>{textoDaFalha(falha)}</p>
+                    {falha.tipo === 'limite_plano' && (
+                      <Button variant="secondary" size="sm" onClick={() => navigate('/dashboard')}>Ver meus documentos</Button>
+                    )}
+                  </div>
                 </div>
               )}
 
-              <div style={{ display: 'flex', gap: 10 }}>
-                <button onClick={() => setStep(1)} style={{ flex: 1, padding: 14, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer', color: '#64748b', fontFamily: 'Inter, system-ui, sans-serif' }}>
-                  ← Voltar
-                </button>
-                <button
-                  onClick={handleSalvar}
-                  disabled={!data || loading}
-                  style={{ flex: 2, padding: 14, background: data && !loading ? ACCENT : '#e2e8f0', color: data && !loading ? '#fff' : '#94a3b8', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: data && !loading ? 'pointer' : 'not-allowed', fontFamily: 'Inter, system-ui, sans-serif', transition: 'all 0.15s' }}
-                >
-                  {loading ? 'Salvando...' : 'Proteger meu documento →'}
-                </button>
+              <div className="onboarding-actions">
+                <Button variant="secondary" size="lg" onClick={() => setStep(1)} icon={<ArrowLeft size={17} strokeWidth={1.75} />}>Voltar</Button>
+                <Button variant="primary" size="lg" disabled={!data || loading} onClick={handleSalvar}>
+                  {loading ? 'Salvando…' : 'Proteger documento'}
+                </Button>
               </div>
-            </div>
+            </motion.section>
           )}
 
-          {/* STEP 3 — SUCESSO */}
           {step === 3 && (
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 64, marginBottom: 20 }}>🎉</div>
-              <h1 style={{ fontSize: 32, fontWeight: 800, color: '#0f172a', letterSpacing: '-1px', marginBottom: 12 }}>
-                Documento protegido!
-              </h1>
-              <p style={{ fontSize: 16, color: '#64748b', lineHeight: 1.65, marginBottom: 12 }}>
-                Seu {TIPOS.find(t => t.id === tipo)?.label} esta sendo monitorado. Vamos te avisar antes de vencer.
-              </p>
-              <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 12, padding: '16px 20px', marginBottom: 32, display: 'inline-block' }}>
-                <span style={{ fontSize: 14, color: '#15803d', fontWeight: 600 }}>
-                  ✓ Alertas configurados: 90 dias · 30 dias · 7 dias antes
-                </span>
+            <motion.section className="onboarding-content onboarding-success" key="sucesso" {...stepMotion}>
+              <SuccessMark />
+              <h1>Documento monitorado.</h1>
+              <p>Seu {selectedDocument?.label} entrou no painel. A partir daqui, a data deixa de depender da sua memória.</p>
+              <div className="bz-feedback bz-feedback--success">
+                <BellRing size={17} strokeWidth={1.75} aria-hidden="true" />
+                <p>Alertas configurados: <strong className="bz-data">90 · 30 · 7 · 1</strong> dia antes.</p>
               </div>
-              <br />
-              <button
-                onClick={() => navigate('/dashboard')}
-                style={{ background: ACCENT, color: '#fff', border: 'none', borderRadius: 10, padding: '14px 32px', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'Inter, system-ui, sans-serif' }}
-              >
-                Ver meu painel →
-              </button>
-            </div>
+              <Button variant="primary" size="lg" onClick={() => navigate('/dashboard')} icon={<ArrowRight size={17} strokeWidth={1.75} />}>
+                Abrir meu painel
+              </Button>
+            </motion.section>
           )}
-
-        </div>
-      </div>
+        </AnimatePresence>
+      </main>
     </div>
   )
 }

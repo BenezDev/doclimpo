@@ -15,15 +15,15 @@ export function interpretarErro(error: PostgrestError | Error | null): FalhaAoSa
     return { tipo: 'duplicado' }
   }
 
-  return { tipo: 'generico', mensagem: 'Nao foi possivel salvar agora. Tente de novo em instantes.' }
+  return { tipo: 'generico', mensagem: 'Não foi possível salvar agora. Tente de novo em instantes.' }
 }
 
 export function textoDaFalha(falha: FalhaAoSalvar): string {
   switch (falha.tipo) {
     case 'limite_plano':
-      return 'O plano gratuito monitora 1 documento. Faca upgrade para adicionar mais.'
+      return 'O plano gratuito monitora 1 documento. Faça upgrade para adicionar mais.'
     case 'duplicado':
-      return 'Voce ja monitora esse documento.'
+      return 'Você já monitora esse documento.'
     case 'generico':
       return falha.mensagem
   }

@@ -1,9 +1,5 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { corsHeaders } from "../_shared/cors.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -39,25 +35,36 @@ Deno.serve(async (req) => {
     // Admin client to delete user data and auth record (LGPD)
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Delete all user data in order (respecting foreign keys)
-    const tables = [
-      "alertas_configuracao",
-      "renovacoes",
-      "notifications",
-      "documentos",
-      "payments",
-      "subscriptions",
-      "referral_codes",
-      "referrals",
-      "profiles",
+    // Apaga os dados respeitando as chaves estrangeiras e a coluna de posse
+    // correta de cada tabela: profiles/referral_codes usam user_id; referrals
+    // usa referred_id/referrer_id; as demais usam usuario_id. Os erros são
+    // coletados — se algo falhar, NÃO removemos o usuário do auth, para o
+    // apagamento poder ser retentado sem deixar a conta órfã (LGPD).
+    const remocoes: { tabela: string; coluna: string }[] = [
+      { tabela: "renovacoes", coluna: "usuario_id" },
+      { tabela: "alertas_configuracao", coluna: "usuario_id" },
+      { tabela: "notifications", coluna: "usuario_id" },
+      { tabela: "documentos", coluna: "usuario_id" },
+      { tabela: "payments", coluna: "usuario_id" },
+      { tabela: "subscriptions", coluna: "usuario_id" },
+      { tabela: "referrals", coluna: "referred_id" },
+      { tabela: "referrals", coluna: "referrer_id" },
+      { tabela: "referral_codes", coluna: "user_id" },
+      { tabela: "profiles", coluna: "user_id" },
     ];
 
-    for (const table of tables) {
-      await adminClient.from(table).delete().eq("usuario_id", user.id);
+    const erros: string[] = [];
+    for (const { tabela, coluna } of remocoes) {
+      const { error } = await adminClient.from(tabela).delete().eq(coluna, user.id);
+      if (error) erros.push(`${tabela}.${coluna}: ${error.message}`);
     }
 
-    // Also delete referrals where user is referred
-    await adminClient.from("referrals").delete().eq("referred_id", user.id);
+    if (erros.length > 0) {
+      return new Response(
+        JSON.stringify({ error: `Falha ao apagar dados; nada foi removido do auth. ${erros.join("; ")}` }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
     // Delete auth user
     const { error: deleteError } = await adminClient.auth.admin.deleteUser(user.id);
