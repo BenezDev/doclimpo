@@ -21,12 +21,12 @@ CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA extensions;
 -- Remove agendamentos anteriores para a migration ser idempotente.
 DO $$
 DECLARE
-  job text;
+  nome_job text;
 BEGIN
-  FOREACH job IN ARRAY ARRAY['docalert-verificar-vencimentos', 'docalert-enviar-notificacoes']
+  FOREACH nome_job IN ARRAY ARRAY['docalert-verificar-vencimentos', 'docalert-enviar-notificacoes']
   LOOP
-    IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = job) THEN
-      PERFORM cron.unschedule(job);
+    IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = nome_job) THEN
+      PERFORM cron.unschedule(nome_job);
     END IF;
   END LOOP;
 END;

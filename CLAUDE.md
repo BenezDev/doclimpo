@@ -5,21 +5,21 @@ O usuário cadastra documentos com data de vencimento e recebe avisos antes de v
 
 ## ⚠️ Leia isto antes de mexer
 
-**Este repositório não é o que está em produção.** O app em
-`https://docalert-three.vercel.app` roda uma versão mais avançada — com Stripe,
-Resend, 8 rotas e tela de conta — cuja fonte não está neste repo nem no disco.
-O deploy foi feito por CLI, sem vínculo git.
+**Produção atual:** repo `BenezDev/doclimpo` (branch `main`) → Vercel `doclimpo.vercel.app`
+→ Supabase `zgpixmunvgnwgzzfwpjg`. Deploy é por git: push na `main` publica.
 
-Antes de investir em qualquer refatoração grande, descubra de onde a Vercel faz
-deploy. Diagnóstico completo no vault Obsidian `~/Documentos/DocAlertV2`.
+`https://docalert-three.vercel.app` é o app antigo (DocAlert), deployado por CLI sem
+vínculo git e apontando para um Supabase de outra conta. Está sendo substituído; não
+invista nele. Histórico do diagnóstico no vault Obsidian `~/Documentos/DocAlertV2`.
 
-Há três projetos Supabase envolvidos:
+Projetos Supabase:
 
 | Ref | Onde | Situação |
 |---|---|---|
-| `powthshacxtxqfsuifeb` | `config.toml` deste repo | morto (NXDOMAIN) — o `.env` local já NÃO aponta mais para ele |
-| `hwsuqxwonfhjtyxervqh` | conta Supabase conectada ao Claude | ativo, não é do DocLimpo (serve só como staging) |
-| `hkdlthvyhvnlfojwqnxc` | bundle de produção **e o `.env` local (desde 14/09/2026)** | vivo, com dados reais — contas criadas em dev entram aqui |
+| `zgpixmunvgnwgzzfwpjg` | **`.env` local e `config.toml` (desde 15/09/2026)**, sa-east-1, conta do João | **o banco do DocLimpo**: 12 migrations aplicadas, 13 Edge Functions no ar, cron agendado, Vault com `project_url`/`cron_secret` |
+| `hkdlthvyhvnlfojwqnxc` | bundle antigo em `docalert-three.vercel.app` | de outra conta, sem acesso; 5 migrations atrás do código — não usar |
+| `hwsuqxwonfhjtyxervqh` | mesma conta Supabase | outro projeto (`licenses`), não é do DocLimpo — não mexer |
+| `powthshacxtxqfsuifeb` | histórico | morto (NXDOMAIN) |
 
 ## Stack
 
