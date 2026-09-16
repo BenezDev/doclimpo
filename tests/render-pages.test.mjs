@@ -94,7 +94,9 @@ test('404 oferece início e painel sem reproduzir a URL inválida', async () => 
 })
 test('política informa escopo real, bases legais, controles da conta e fontes oficiais', async () => {
   const html = await renderPage('Privacy', '/privacidade')
-  assert.match(html, /Minuta em revisão/)
+  assert.doesNotMatch(html, /Minuta em revisão/)
+  assert.match(html, /Responsável pelo tratamento:<\/strong> \S/)
+  assert.match(html, /mailto:/)
   for (const text of ['Supabase', 'Resend', 'Google Fonts', 'ViaCEP', 'Retenção e exclusão', 'Responsável e contato', 'Bases legais', 'Encarregado de dados']) assert.ok(html.includes(text), text)
   assert.match(html, /endereço residencial/)
   assert.match(html, /href="\/conta"/)
@@ -104,11 +106,12 @@ test('política informa escopo real, bases legais, controles da conta e fontes o
 })
 test('termos cobrem plano gratuito, arrependimento, alertas como apoio e foro do consumidor', async () => {
   const html = await renderPage('Termos', '/termos')
-  assert.match(html, /Minuta em revisão/)
+  assert.doesNotMatch(html, /Minuta em revisão/)
+  assert.match(html, /Responsável pelo serviço:<\/strong> \S/)
+  assert.match(html, /mailto:/)
   for (const text of ['um documento', '7 dias', '90, 30, 7 e 1 dia', 'foro do seu domicílio', 'Código de Defesa do Consumidor']) assert.ok(html.includes(text), text)
   assert.match(html, /href="\/privacidade"/)
   assert.match(html, /href="\/conta"/)
-  assert.doesNotMatch(html, /mailto:/)
 })
 test('login oferece recuperação de senha; cadastro não', async () => {
   const login = await renderPage('Login', '/login')

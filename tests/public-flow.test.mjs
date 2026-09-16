@@ -68,10 +68,11 @@ test('FAQ contém exatamente cinco perguntas distintas', () => {
   assert.equal(new Set(faqs.map(item => item.question)).size, 5)
   for (const item of faqs) assert.ok(item.answer.length > 60)
 })
-test('contato e SLA não são inventados; páginas legais ficam em minuta até o operador se identificar', () => {
-  assert.equal(support.email, null)
-  assert.equal(support.responseTime, null)
-  assert.equal(legalPublished, Boolean(support.controller && support.email))
+test('operador identificado: contato, SLA e responsável preenchidos, páginas legais publicadas', () => {
+  assert.match(support.email, /^[^\s@]+@[^\s@]+\.[^\s@]+$/)
+  assert.match(support.responseTime, /dia/)
+  assert.ok(support.controller && support.controller.length > 5)
+  assert.equal(legalPublished, true)
 })
 test('recuperação de senha: mesma resposta para qualquer e-mail, redirect fixo, sem vazar erro interno', async () => {
   let received = null

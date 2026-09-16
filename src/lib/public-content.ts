@@ -33,10 +33,10 @@ export function withDocumentIntent(path: string, search: string) {
 //   responseTime prazo da primeira resposta, ex.: "2 dias úteis"
 //   encarregado  nome do encarregado de dados (opcional; pode ser o próprio responsável)
 export const support: { email: string | null; responseTime: string | null; controller: string | null; encarregado: string | null } = {
-  email: null,
-  responseTime: null,
-  controller: null,
-  encarregado: null,
+  email: 'joaovictorkattwinkel@gmail.com',
+  responseTime: '2 dias úteis',
+  controller: 'João Victor Benez Kattwinkel',
+  encarregado: 'João Victor Benez Kattwinkel',
 }
 
 // Verdadeiro quando o operador já se identificou: páginas legais saem de minuta.
