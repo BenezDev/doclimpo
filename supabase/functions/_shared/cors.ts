@@ -4,7 +4,7 @@
 //
 // Observação: a API do Supabase é baseada em Bearer token (não em cookies),
 // então CORS aqui é defesa em profundidade, não a única barreira.
-const APP_ORIGIN = Deno.env.get("APP_URL") ?? "https://docalert-three.vercel.app";
+const APP_ORIGIN = Deno.env.get("APP_URL") ?? "https://www.doclimpo.com";
 
 export const corsHeaders: Record<string, string> = {
   "Access-Control-Allow-Origin": APP_ORIGIN,

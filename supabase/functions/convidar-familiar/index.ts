@@ -90,7 +90,7 @@ Deno.serve(async (req) => {
     const resendKey = Deno.env.get("RESEND_API_KEY");
     if (!resendKey) return responder({ error: "Envio de e-mail não configurado." }, 500);
 
-    const appUrl = Deno.env.get("APP_URL") ?? "https://docalert-three.vercel.app";
+    const appUrl = Deno.env.get("APP_URL") ?? "https://www.doclimpo.com";
     const nomeSeguro = escapeHtml(perfil?.nome || user.email);
     const link = `${appUrl}/conta?convite=${token}`;
 

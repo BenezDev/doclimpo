@@ -5,7 +5,7 @@ O usuário cadastra documentos com data de vencimento e recebe avisos antes de v
 
 ## ⚠️ Leia isto antes de mexer
 
-**Produção atual:** repo `BenezDev/doclimpo` (branch `main`) → Vercel `doclimpo.vercel.app`
+**Produção atual:** repo `BenezDev/doclimpo` (branch `main`) → Vercel `www.doclimpo.com` (alias `doclimpo.vercel.app`)
 → Supabase `zgpixmunvgnwgzzfwpjg`. Deploy é por git: push na `main` publica.
 
 `https://docalert-three.vercel.app` é o app antigo (DocAlert), deployado por CLI sem

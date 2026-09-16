@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
       return responder({ error: "Você já tem uma assinatura ativa. Use \"Gerenciar assinatura\" na sua conta para trocar de plano." }, 409);
     }
 
-    const origem = origemPermitida(req.headers.get("origin"), Deno.env.get("APP_URL") ?? "https://docalert-three.vercel.app");
+    const origem = origemPermitida(req.headers.get("origin"), Deno.env.get("APP_URL") ?? "https://www.doclimpo.com");
 
     const sessao = await stripe.checkout.sessions.create({
       customer: customerId,

@@ -1,4 +1,4 @@
-export const siteOrigin = 'https://docalert-three.vercel.app'
+export const siteOrigin = 'https://www.doclimpo.com'
 
 export interface PageMeta { title: string; description: string; index: boolean; path: string }
 

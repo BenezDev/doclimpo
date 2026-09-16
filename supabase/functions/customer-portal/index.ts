@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
       return responder({ error: "Nenhuma assinatura encontrada para esta conta." }, 404);
     }
 
-    const origem = origemPermitida(req.headers.get("origin"), Deno.env.get("APP_URL") ?? "https://docalert-three.vercel.app");
+    const origem = origemPermitida(req.headers.get("origin"), Deno.env.get("APP_URL") ?? "https://www.doclimpo.com");
     const portal = await stripe.billingPortal.sessions.create({ customer: customerId, return_url: `${origem}/conta` });
 
     return responder({ url: portal.url });

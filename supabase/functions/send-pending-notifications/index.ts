@@ -7,7 +7,7 @@ import { escapeHtml } from "../_shared/html.ts";
 // Esta função é o elo que faltava: drena a fila e envia de fato.
 const LOTE = 100;
 const JANELA_RETENTATIVA_DIAS = 7;
-const APP_URL = Deno.env.get("APP_URL") ?? "https://docalert-three.vercel.app";
+const APP_URL = Deno.env.get("APP_URL") ?? "https://www.doclimpo.com";
 const VERDE = "#0a7742";
 
 const LABELS: Record<string, string> = {
