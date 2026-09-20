@@ -3,8 +3,10 @@ import {
   AlertTriangle,
   ArrowLeft,
   BellRing,
+  CalendarPlus,
   CheckCircle2,
   Clock3,
+  Download,
   Pencil,
   Trash2,
   WalletCards,
@@ -25,6 +27,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useTheme } from '../hooks/useTheme'
 import { diasRestantes, formatarDataLonga, statusPorDias } from '../lib/datas'
 import { JANELAS_ALERTA } from '../lib/planos'
+import { gerarIcs, linkGoogleAgenda, nomeArquivoIcs } from '../lib/agenda'
 import { supabase } from '../integrations/supabase/client'
 import type { PerfilEndereco } from '../lib/endereco'
 import type { Tables } from '../integrations/supabase/types'
@@ -212,6 +215,23 @@ export default function DocumentoDetalhe() {
   const guide = GUIDES[document.tipo] || DEFAULT_GUIDE
   const documentName = document.apelido || LABELS[document.tipo] || document.tipo
 
+  // Evento de agenda: só o rótulo e o link do painel. Nada de número de documento.
+  const eventoAgenda = {
+    titulo: `Vence: ${documentName}`,
+    dataISO: document.data_vencimento,
+    descricao: `${LABELS[document.tipo] || 'Documento'} cadastrado no DocLimpo. Avisos por e-mail em ${JANELAS_ALERTA.join(', ')} dias antes.`,
+    url: `${window.location.origin}/documento/${document.id}`,
+  }
+  const baixarIcs = () => {
+    const blob = new Blob([gerarIcs(eventoAgenda, { uid: document.id })], { type: 'text/calendar;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = window.document.createElement('a')
+    link.href = url
+    link.download = nomeArquivoIcs(eventoAgenda.titulo)
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div className="bz-page detail-page">
       {mostrarEndereco && (
@@ -324,6 +344,12 @@ export default function DocumentoDetalhe() {
               <Button variant="primary" size="lg" disabled={renewing} onClick={markRenewed} icon={<CheckCircle2 size={18} strokeWidth={1.75} />}>
                 {renewing ? 'Atualizando…' : 'Marcar como renovado'}
               </Button>
+              <div className="detail-countdown__agenda">
+                <a className="bz-button bz-button--secondary bz-button--md" href={linkGoogleAgenda(eventoAgenda)} target="_blank" rel="noopener noreferrer">
+                  <CalendarPlus size={16} strokeWidth={1.75} aria-hidden="true" /><span>Google Agenda</span>
+                </a>
+                <Button variant="secondary" onClick={baixarIcs} icon={<Download size={16} strokeWidth={1.75} />}>Baixar .ics</Button>
+              </div>
             </section>
 
             <OndeRenovar tipo={document.tipo} perfil={perfilEndereco} onCadastrarEndereco={() => setMostrarEndereco(true)} />

@@ -514,6 +514,8 @@ h1, h2, h3, h4 { color: var(--bz-text); font-weight: 600; }
 .detail-countdown__date span { color: var(--bz-text-muted); font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
 .detail-countdown__date time { color: var(--bz-text); font-size: 12px; text-align: right; }
 .detail-countdown .bz-button { width: 100%; }
+.detail-countdown__agenda { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.detail-countdown__agenda .bz-button { width: 100%; }
 .detail-countdown--atencao .detail-countdown__value { color: #9c6009; }
 .detail-countdown--critico .detail-countdown__value, .detail-countdown--vencido .detail-countdown__value { color: #a81e17; }
 

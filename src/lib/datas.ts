@@ -39,7 +39,7 @@ export function formatarDataLonga(iso: DataISO): string {
 
 // Formato compacto de calendário (iCalendar, Google Agenda): 'YYYYMMDD'.
 export function paraCompacto(iso: DataISO): string {
-  return iso.replaceAll('-', '')
+  return iso.replace(/-/g, '')
 }
 
 export function somarDias(iso: DataISO, dias: number): DataISO {
