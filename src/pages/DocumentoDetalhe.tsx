@@ -16,7 +16,6 @@ import {
   Brand,
   Button,
   DocumentGlyph,
-  type DocumentStatus,
   StatusPill,
   ThemeToggle,
 } from '../components/ui/Bezel'
@@ -24,6 +23,8 @@ import { EnderecoModal } from '../components/ui/EnderecoModal'
 import { OndeRenovar } from '../components/ui/OndeRenovar'
 import { useAuth } from '../hooks/useAuth'
 import { useTheme } from '../hooks/useTheme'
+import { diasRestantes, formatarDataLonga, statusPorDias } from '../lib/datas'
+import { JANELAS_ALERTA } from '../lib/planos'
 import { supabase } from '../integrations/supabase/client'
 import type { PerfilEndereco } from '../lib/endereco'
 import type { Tables } from '../integrations/supabase/types'
@@ -108,28 +109,6 @@ const DEFAULT_GUIDE: Guide = {
     { title: 'Organize os comprovantes', description: 'Separe identificação, formulários e comprovantes necessários.', time: '30 min', cost: 'Sem estimativa' },
     { title: 'Protocole a renovação', description: 'Conclua o processo pelo canal oficial e acompanhe o pedido.', time: 'Prazo oficial', cost: 'Consulte o órgão' },
   ],
-}
-
-function parseDate(date: string) {
-  const [year, month, day] = date.split('-')
-  return new Date(Number(year), Number(month) - 1, Number(day))
-}
-
-function daysRemaining(date: string) {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  return Math.round((parseDate(date).getTime() - today.getTime()) / 86_400_000)
-}
-
-function formatLongDate(date: string) {
-  return parseDate(date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
-}
-
-function getStatus(days: number): { id: DocumentStatus; label: string } {
-  if (days < 0) return { id: 'vencido', label: 'Vencido' }
-  if (days <= 7) return { id: 'critico', label: 'Crítico' }
-  if (days <= 90) return { id: 'atencao', label: 'Atenção' }
-  return { id: 'vigente', label: 'Vigente' }
 }
 
 export default function DocumentoDetalhe() {
@@ -228,8 +207,8 @@ export default function DocumentoDetalhe() {
     )
   }
 
-  const days = daysRemaining(document.data_vencimento)
-  const status = getStatus(days)
+  const days = diasRestantes(document.data_vencimento)
+  const status = statusPorDias(days)
   const guide = GUIDES[document.tipo] || DEFAULT_GUIDE
   const documentName = document.apelido || LABELS[document.tipo] || document.tipo
 
@@ -340,7 +319,7 @@ export default function DocumentoDetalhe() {
               <div className="detail-countdown__value bz-data">{Math.abs(days).toString().padStart(2, '0')}<span>dias</span></div>
               <div className="detail-countdown__date">
                 <span>Vencimento</span>
-                <time dateTime={document.data_vencimento}>{formatLongDate(document.data_vencimento)}</time>
+                <time dateTime={document.data_vencimento}>{formatarDataLonga(document.data_vencimento)}</time>
               </div>
               <Button variant="primary" size="lg" disabled={renewing} onClick={markRenewed} icon={<CheckCircle2 size={18} strokeWidth={1.75} />}>
                 {renewing ? 'Atualizando…' : 'Marcar como renovado'}
@@ -370,7 +349,7 @@ export default function DocumentoDetalhe() {
                 </div>
               </div>
               <div className="detail-alert-list">
-                {[90, 30, 7, 1].map(window => (
+                {JANELAS_ALERTA.map(window => (
                   <div className="detail-alert-list__row" key={window}>
                     <span className="bz-data">D-{window.toString().padStart(2, '0')}</span>
                     <p>{window === 1 ? '1 dia antes' : `${window} dias antes`}</p>

@@ -18,15 +18,16 @@ import {
   Brand,
   Button,
   DocumentGlyph,
-  type DocumentStatus,
   StatusPill,
   ThemeToggle,
 } from '../components/ui/Bezel'
 import { useAuth } from '../hooks/useAuth'
+import { usePlano } from '../hooks/usePlano'
 import { useTheme } from '../hooks/useTheme'
 import { supabase } from '../integrations/supabase/client'
 import { precisaPedirEndereco, type PerfilEndereco } from '../lib/endereco'
-import { normalizarPlano, podeAdicionarDocumento, rotuloPlano, type PlanType } from '../lib/planos'
+import { podeAdicionarDocumento, rotuloPlano } from '../lib/planos'
+import { diasRestantes, formatarData, statusPorDias } from '../lib/datas'
 import { bezelSpring, stagger } from '../lib/motion'
 
 interface Documento {
@@ -54,29 +55,6 @@ const LABELS: Record<string, string> = {
   outro: 'Outro',
 }
 
-function parseData(data: string) {
-  const [ano, mes, dia] = data.split('-')
-  return new Date(Number(ano), Number(mes) - 1, Number(dia))
-}
-
-function diasRestantes(data: string) {
-  const hoje = new Date()
-  hoje.setHours(0, 0, 0, 0)
-  return Math.round((parseData(data).getTime() - hoje.getTime()) / 86_400_000)
-}
-
-function formatarData(data: string) {
-  const [ano, mes, dia] = data.split('-')
-  return `${dia}/${mes}/${ano}`
-}
-
-function getStatus(dias: number): { id: DocumentStatus; label: string } {
-  if (dias < 0) return { id: 'vencido', label: 'Vencido' }
-  if (dias <= 7) return { id: 'critico', label: 'Crítico' }
-  if (dias <= 90) return { id: 'atencao', label: 'Atenção' }
-  return { id: 'vigente', label: 'Vigente' }
-}
-
 function progressFor(dias: number) {
   if (dias > 90) return 4
   if (dias < 0) return 100
@@ -97,8 +75,7 @@ export default function Dashboard() {
   const [filter, setFilter] = useState<Filter>('todos')
   const [perfilEndereco, setPerfilEndereco] = useState<PerfilEndereco | null>(null)
   const [mostrarEndereco, setMostrarEndereco] = useState(false)
-  const [plano, setPlano] = useState<PlanType>('FREE')
-  const [planoVersao, setPlanoVersao] = useState(0)
+  const { plano, recarregar: recarregarPlano } = usePlano()
   const [mostrarPlanos, setMostrarPlanos] = useState(false)
   const [avisoCheckout, setAvisoCheckout] = useState<{ tipo: 'sucesso' | 'neutro'; texto: string } | null>(null)
   const [enderecoAdiado, setEnderecoAdiado] = useState(() => {
@@ -146,23 +123,6 @@ export default function Dashboard() {
     return () => { cancelled = true }
   }, [user])
 
-  // Plano efetivo: a mesma função SQL que a trigger de limite usa (inclui o
-  // plano herdado da família). Se o banco ainda não tiver a função, cai no
-  // plan_type do perfil — nunca em "pago".
-  useEffect(() => {
-    if (!user) return
-    let cancelled = false
-    const carregarPlano = async () => {
-      const { data, error } = await supabase.rpc('meu_plano')
-      if (cancelled) return
-      if (!error && typeof data === 'string') { setPlano(normalizarPlano(data)); return }
-      const { data: perfil } = await supabase.from('profiles').select('plan_type').eq('user_id', user.id).maybeSingle()
-      if (!cancelled) setPlano(normalizarPlano(perfil?.plan_type))
-    }
-    carregarPlano()
-    return () => { cancelled = true }
-  }, [user, planoVersao])
-
   // Volta do Checkout do Stripe: sincroniza o plano na hora (o webhook é a
   // fonte contínua; isto cobre a janela até o evento chegar) e limpa a URL.
   useEffect(() => {
@@ -173,7 +133,7 @@ export default function Dashboard() {
       if (resultado === 'success') {
         await supabase.functions.invoke('check-subscription', { body: {} }).catch(() => null)
         if (cancelled) return
-        setPlanoVersao(value => value + 1)
+        recarregarPlano()
         setAvisoCheckout({ tipo: 'sucesso', texto: 'Assinatura ativa. Seus documentos agora são ilimitados.' })
       } else if (resultado === 'canceled') {
         setAvisoCheckout({ tipo: 'neutro', texto: 'Pagamento não concluído. Seu plano continua o mesmo.' })
@@ -182,7 +142,7 @@ export default function Dashboard() {
     }
     concluir()
     return () => { cancelled = true }
-  }, [search, navigate])
+  }, [search, navigate, recarregarPlano])
 
   const documentsWithDays = useMemo(() => docs.map(document => ({
     ...document,
@@ -392,7 +352,7 @@ export default function Dashboard() {
                   <span role="columnheader">Ação</span>
                 </div>
                 {filteredDocuments.map((document, index) => {
-                  const status = getStatus(document.days)
+                  const status = statusPorDias(document.days)
                   return (
                     <motion.div
                       className="documents-table__row"
@@ -435,7 +395,7 @@ export default function Dashboard() {
 
               <div className="documents-cards">
                 {filteredDocuments.map((document, index) => {
-                  const status = getStatus(document.days)
+                  const status = statusPorDias(document.days)
                   return (
                     <motion.article
                       className="document-card"

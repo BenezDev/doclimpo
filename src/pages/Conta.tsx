@@ -22,11 +22,12 @@ import { EnderecoModal } from '../components/ui/EnderecoModal'
 import { PlanosModal } from '../components/ui/PlanosModal'
 import { useAuth } from '../hooks/useAuth'
 import { useTheme } from '../hooks/useTheme'
+import { usePlano } from '../hooks/usePlano'
 import { supabase } from '../integrations/supabase/client'
 import { validateNewPassword } from '../lib/access-flow'
 import { resumoEndereco, temEndereco, type PerfilEndereco } from '../lib/endereco'
 import { bezelSpring } from '../lib/motion'
-import { LIMITE_PESSOAS_FAMILIA, ehPago, formatarPreco, normalizarPlano, planoPorId, rotuloPlano, urlStripeSegura, type PlanType } from '../lib/planos'
+import { LIMITE_PESSOAS_FAMILIA, ehPago, formatarPreco, normalizarPlano, planoPorId, rotuloPlano, urlStripeSegura } from '../lib/planos'
 import { conviteSchema } from '../lib/validacao'
 
 interface PerfilConta extends PerfilEndereco {
@@ -94,7 +95,7 @@ export default function Conta() {
   const [avisoDados, setAvisoDados] = useState<Aviso>(null)
   const [exportando, setExportando] = useState(false)
 
-  const [plano, setPlano] = useState<PlanType>('FREE')
+  const { plano, recarregar: recarregarPlano } = usePlano()
   const [familia, setFamilia] = useState<Familia | null>(null)
   const [membros, setMembros] = useState<Membro[]>([])
   const [familiaVersao, setFamiliaVersao] = useState(0)
@@ -126,17 +127,11 @@ export default function Conta() {
     return () => { cancelled = true }
   }, [user])
 
-  // Plano efetivo (inclui o herdado da família) + situação familiar. Sem a
-  // função no banco (migration pendente), cai no plan_type do perfil.
+  // Situação familiar (papel e membros).
   useEffect(() => {
     if (!user) return
     let cancelled = false
     const carregar = async () => {
-      const { data: efetivo, error } = await supabase.rpc('meu_plano')
-      if (cancelled) return
-      if (!error && typeof efetivo === 'string') setPlano(normalizarPlano(efetivo))
-      else setPlano(normalizarPlano(perfil?.plan_type))
-
       const { data: situacao } = await supabase.rpc('minha_familia')
       if (cancelled) return
       const linha = Array.isArray(situacao) ? situacao[0] : null
@@ -147,7 +142,7 @@ export default function Conta() {
     }
     carregar()
     return () => { cancelled = true }
-  }, [user, perfil?.plan_type, familiaVersao])
+  }, [user, familiaVersao])
 
   // Link do e-mail de convite: /conta?convite=<token>
   useEffect(() => {
@@ -161,12 +156,13 @@ export default function Conta() {
       else {
         setAvisoPlano({ tipo: 'sucesso', texto: `Você entrou na família${data?.titular ? ` de ${data.titular}` : ''}. Seus documentos agora são ilimitados.` })
         setFamiliaVersao(value => value + 1)
+        recarregarPlano()
       }
       navigate('/conta', { replace: true })
     }
     aceitar()
     return () => { cancelled = true }
-  }, [search, user, navigate])
+  }, [search, user, navigate, recarregarPlano])
 
   const abrirPortal = async () => {
     setAbrindoPortal(true)
@@ -208,6 +204,7 @@ export default function Conta() {
     if (error) { setAvisoPlano({ tipo: 'erro', texto: 'Não foi possível sair agora.' }); return }
     setAvisoPlano({ tipo: 'sucesso', texto: 'Você saiu da família. Seus documentos continuam salvos; o plano volta ao gratuito.' })
     setFamiliaVersao(value => value + 1)
+    recarregarPlano()
   }
 
   const alternarAlertas = async (ativo: boolean) => {

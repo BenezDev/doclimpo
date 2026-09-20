@@ -23,6 +23,10 @@ export interface Plano {
 }
 
 export const LIMITE_DOCUMENTOS_FREE = 1
+
+// Espelho de ALERT_DAYS em check-expiring-documents: dias antes do vencimento
+// em que cada aviso sai. Mudou lá, muda aqui.
+export const JANELAS_ALERTA = [90, 30, 7, 1] as const
 export const LIMITE_PESSOAS_FAMILIA = 4
 
 export const PLANOS: Plano[] = [

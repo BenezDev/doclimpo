@@ -14,32 +14,19 @@ import {
 } from 'lucide-react'
 import { useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Brand, DocumentGlyph, StatusPill, ThemeToggle, type DocumentStatus } from '../components/ui/Bezel'
+import { Brand, DocumentGlyph, StatusPill, ThemeToggle } from '../components/ui/Bezel'
 import { ActionLink } from '../components/ui/ActionLink'
 import { useTheme } from '../hooks/useTheme'
-import { LIMITE_DOCUMENTOS_FREE, PLANOS, formatarPreco } from '../lib/planos'
+import { JANELAS_ALERTA, LIMITE_DOCUMENTOS_FREE, PLANOS, formatarPreco } from '../lib/planos'
+import { formatarData, hojeISO, somarDias, statusPorDias } from '../lib/datas'
 import { faqs, support, useCases, withDocumentIntent } from '../lib/public-content'
 import '../styles/landing.css'
-
-// Espelho de ALERT_DAYS em check-expiring-documents. Só para o mock do painel.
-const JANELAS_ALERTA = [90, 30, 7, 1]
-
-function exampleDate(days: number) {
-  const date = new Date()
-  date.setDate(date.getDate() + days)
-  return date.toLocaleDateString('pt-BR')
-}
-
-// Mesmos limiares do Dashboard: crítico até 7 dias, atenção até 90.
-function statusFor(days: number): DocumentStatus {
-  return days <= 7 ? 'critico' : days <= 90 ? 'atencao' : 'vigente'
-}
 
 const sampleDocuments = [
   { type: 'cnh', title: 'CNH', days: 5 },
   { type: 'crlv', title: 'CRLV · carro', days: 51 },
   { type: 'passaporte', title: 'Passaporte', days: 160 },
-].map(document => ({ ...document, date: exampleDate(document.days), status: statusFor(document.days) }))
+].map(document => ({ ...document, date: formatarData(somarDias(hojeISO(), document.days)), status: statusPorDias(document.days).id }))
 
 const nextAlert = sampleDocuments
   .map(document => ({ title: document.title, window: JANELAS_ALERTA.find(janela => janela < document.days) }))
