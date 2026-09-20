@@ -1,0 +1,128 @@
+[
+  {
+    "file": "landing-1280-light.png",
+    "width": 1280,
+    "theme": "light",
+    "scrollWidth": 1280,
+    "clientWidth": 1280,
+    "bodyScrollWidth": 1280,
+    "height": 5066,
+    "h1": 1,
+    "dark": false,
+    "anchors": [],
+    "navVisible": true,
+    "topButtons": [
+      "Entrar",
+      "Começar grátis"
+    ],
+    "wide": [],
+    "requests": 40,
+    "external": [],
+    "consoleErrors": []
+  },
+  {
+    "file": "landing-1280-dark.png",
+    "width": 1280,
+    "theme": "dark",
+    "scrollWidth": 1280,
+    "clientWidth": 1280,
+    "bodyScrollWidth": 1280,
+    "height": 5066,
+    "h1": 1,
+    "dark": true,
+    "anchors": [],
+    "navVisible": true,
+    "topButtons": [
+      "Entrar",
+      "Começar grátis"
+    ],
+    "wide": [],
+    "requests": 39,
+    "external": [],
+    "consoleErrors": []
+  },
+  {
+    "file": "landing-375-light.png",
+    "width": 375,
+    "theme": "light",
+    "scrollWidth": 375,
+    "clientWidth": 375,
+    "bodyScrollWidth": 375,
+    "height": 8523,
+    "h1": 1,
+    "dark": false,
+    "anchors": [],
+    "navVisible": false,
+    "topButtons": [
+      "Entrar",
+      "Começar grátis"
+    ],
+    "wide": [],
+    "requests": 39,
+    "external": [],
+    "consoleErrors": []
+  },
+  {
+    "file": "landing-375-dark.png",
+    "width": 375,
+    "theme": "dark",
+    "scrollWidth": 375,
+    "clientWidth": 375,
+    "bodyScrollWidth": 375,
+    "height": 8523,
+    "h1": 1,
+    "dark": true,
+    "anchors": [],
+    "navVisible": false,
+    "topButtons": [
+      "Entrar",
+      "Começar grátis"
+    ],
+    "wide": [],
+    "requests": 39,
+    "external": [],
+    "consoleErrors": []
+  },
+  {
+    "file": "landing-360-light.png",
+    "width": 360,
+    "theme": "light",
+    "scrollWidth": 360,
+    "clientWidth": 360,
+    "bodyScrollWidth": 360,
+    "height": 8695,
+    "h1": 1,
+    "dark": false,
+    "anchors": [],
+    "navVisible": false,
+    "topButtons": [
+      "Entrar",
+      "Começar grátis"
+    ],
+    "wide": [],
+    "requests": 39,
+    "external": [],
+    "consoleErrors": []
+  },
+  {
+    "file": "landing-360-dark.png",
+    "width": 360,
+    "theme": "dark",
+    "scrollWidth": 360,
+    "clientWidth": 360,
+    "bodyScrollWidth": 360,
+    "height": 8695,
+    "h1": 1,
+    "dark": true,
+    "anchors": [],
+    "navVisible": false,
+    "topButtons": [
+      "Entrar",
+      "Começar grátis"
+    ],
+    "wide": [],
+    "requests": 39,
+    "external": [],
+    "consoleErrors": []
+  }
+]

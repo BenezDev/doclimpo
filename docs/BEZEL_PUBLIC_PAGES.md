@@ -2,13 +2,13 @@
 
 ## Rotas e navegação
 
-- `/`: landing com CTAs, três casos de uso ilustrativos e cinco perguntas frequentes.
+- `/`: landing com topo fixo, mock estático do painel (rotulado como demonstração), três casos de uso ilustrativos, planos lidos de `src/lib/planos.ts` e cinco perguntas frequentes. Estilos próprios em `src/styles/landing.css`, importado pela página.
 - `/cadastro`: abre diretamente a criação de conta; `/login` permanece para entrar.
 - `/cadastro?documento=cnh`, `passaporte` ou `seguro`: preservam o tipo no agradecimento, login e onboarding. Somente tipos conhecidos são aceitos; e-mail, token e destinos arbitrários não são propagados.
 - `/obrigado`: confirmação pendente, sessão ativa ou acesso direto sem alegação de sucesso.
 - `/privacidade`: minuta pública para revisão, com dados do fluxo atual e lacunas sinalizadas; `noindex` enquanto incompleta.
 - Qualquer rota desconhecida: 404 Bezel com retorno ao início e ao painel.
-- Âncoras: `/#como-funciona`, `/#casos`, `/#gratuito`, `/#perguntas`, `/#atendimento`.
+- Âncoras: `/#como-funciona`, `/#casos`, `/#planos`, `/#gratuito`, `/#perguntas`, `/#atendimento`.
 
 ## Pendências antes de publicar
 
@@ -36,4 +36,4 @@ O build gera HTML com title/description/OG/canonical por rota, além do ajuste n
 
 `vercel.json` contém regras locais para servir esses arquivos e retornar HTTP 404 nos endereços desconhecidos, preservando assets e rotas privadas. A checagem do build valida arquivos e regras, não o comportamento remoto da Vercel. O Vite de desenvolvimento mantém seu fallback HTTP 200; a página React ainda mostra a 404.
 
-Não foram realizados QA visual em navegador, deploy, push, alterações de schema, Edge Functions ou configuração remota do Supabase.
+Capturas da landing (1280/375/360 px, claro e escuro) e o relatório de overflow, requisições e console ficam em `docs/evidencias/landing-<data>/`. Não foram realizados deploy, push, alterações de schema, Edge Functions ou configuração remota do Supabase.
