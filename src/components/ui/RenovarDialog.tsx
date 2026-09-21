@@ -1,27 +1,25 @@
 import { motion, useReducedMotion } from 'framer-motion'
 import { CheckCircle2, CircleAlert, X } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { useState } from 'react'
 import { supabase } from '../../integrations/supabase/client'
 import { formatarData, hojeISO, somarAnos } from '../../lib/datas'
 import { interpretarErro, textoDaFalha } from '../../lib/erros'
 import { bezelSpring } from '../../lib/motion'
 import { renovacaoSchema } from '../../lib/validacao'
 import { Button } from './Bezel'
+import { SugestaoData } from './SugestaoData'
 
 export interface DocumentoRenovavel {
   id: string
   tipo: string
   apelido: string | null
   data_vencimento: string
+  extra?: unknown
 }
 
 interface Props {
   documento: DocumentoRenovavel
   nome: string
-  // Sugestão inicial da nova data (calendário veicular, CNH por idade…). Sem ela, +1 ano.
-  sugestao?: string
-  // Conteúdo extra abaixo do campo de data (calculadoras de prazo).
-  ajuda?: ReactNode
   onClose: () => void
   onRenovado: (novoId: string) => void
   onEncerrado: () => void
@@ -30,9 +28,11 @@ interface Props {
 // "Marcar como renovado" com continuidade: a linha antiga vira histórico e
 // uma nova nasce com o próximo prazo (rpc renovar_documento, transacional).
 // "Encerrar" mantém o comportamento antigo: só resolve, sem nova data.
-export function RenovarDialog({ documento, nome, sugestao, ajuda, onClose, onRenovado, onEncerrado }: Props) {
+export function RenovarDialog({ documento, nome, onClose, onRenovado, onEncerrado }: Props) {
   const reduceMotion = useReducedMotion()
-  const [novaData, setNovaData] = useState(sugestao ?? somarAnos(documento.data_vencimento, 1))
+  const [novaData, setNovaData] = useState(somarAnos(documento.data_vencimento, 1))
+  const extra = documento.extra && typeof documento.extra === 'object' ? documento.extra as { uf?: string } : null
+  const anoSeguinte = Number(documento.data_vencimento.slice(0, 4)) + 1
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
 
@@ -89,7 +89,7 @@ export function RenovarDialog({ documento, nome, sugestao, ajuda, onClose, onRen
             <label htmlFor="renovar-data">Nova data de vencimento</label>
             <input className="bz-input" id="renovar-data" type="date" value={novaData} min={hojeISO()} onChange={event => setNovaData(event.target.value)} />
           </div>
-          {ajuda}
+          <SugestaoData tipo={documento.tipo} ufPadrao={extra?.uf} ano={anoSeguinte} onEscolher={setNovaData} />
           {erro && (
             <div className="bz-feedback bz-feedback--danger" role="alert">
               <CircleAlert size={17} strokeWidth={1.75} aria-hidden="true" />

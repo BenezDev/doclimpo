@@ -7,6 +7,7 @@ import { interpretarErro, textoDaFalha, type FalhaAoSalvar } from '../../lib/err
 import { documentoSchema } from '../../lib/validacao'
 import { bezelSpring } from '../../lib/motion'
 import { Button, DocumentGlyph } from './Bezel'
+import { SugestaoData, type ExtraVeicular } from './SugestaoData'
 
 const TIPOS = [
   { id: 'cnh', label: 'CNH', description: 'Carteira de motorista' },
@@ -35,10 +36,12 @@ interface Props {
   onLimite?: () => void
   // Tipos empresariais aparecem só para quem pode usá-los (plano MEI).
   mostrarEmpresariais?: boolean
+  // UF do endereço do perfil, para pré-selecionar a sugestão de IPVA/CRLV.
+  ufPadrao?: string | null
 }
 
 export function AddDocumentModal(props: Props) {
-  const { onClose, onSuccess, onLimite, mostrarEmpresariais = false } = props
+  const { onClose, onSuccess, onLimite, mostrarEmpresariais = false, ufPadrao } = props
   const tipos = TIPOS.filter(item => mostrarEmpresariais || !item.empresarial)
   const { user } = useAuth()
   const reduceMotion = useReducedMotion()
@@ -47,6 +50,7 @@ export function AddDocumentModal(props: Props) {
   const [tipo, setTipo] = useState('')
   const [apelido, setApelido] = useState('')
   const [data, setData] = useState('')
+  const [extra, setExtra] = useState<ExtraVeicular | undefined>(undefined)
   const [loading, setLoading] = useState(false)
   const [falha, setFalha] = useState<FalhaAoSalvar | null>(null)
   const selectedDocument = tipos.find(item => item.id === tipo)
@@ -91,7 +95,7 @@ export function AddDocumentModal(props: Props) {
     setLoading(true)
     setFalha(null)
 
-    const validado = documentoSchema.safeParse({ tipo, apelido, data_vencimento: data })
+    const validado = documentoSchema.safeParse({ tipo, apelido, data_vencimento: data, extra })
     if (!validado.success) {
       setFalha({ tipo: 'generico', mensagem: validado.error.issues[0]?.message ?? 'Dados inválidos.' })
       setLoading(false)
@@ -103,6 +107,7 @@ export function AddDocumentModal(props: Props) {
       tipo,
       apelido: apelido || null,
       data_vencimento: data,
+      extra: validado.data.extra ?? null,
     })
 
     if (error) {
@@ -177,8 +182,9 @@ export function AddDocumentModal(props: Props) {
             <p className="bz-modal__lead">{selectedDocument?.label} selecionado. Agora falta a data que move todo o sistema.</p>
             <div className="bz-field">
               <label htmlFor="modal-data">Data de vencimento</label>
-              <input className="bz-input" id="modal-data" type="date" value={data} onChange={event => setData(event.target.value)} />
+              <input className="bz-input" id="modal-data" type="date" value={data} onChange={event => { setData(event.target.value); setExtra(undefined) }} />
             </div>
+            <SugestaoData tipo={tipo} ufPadrao={ufPadrao} onEscolher={(sugerida, dados) => { setData(sugerida); setExtra(dados) }} />
             <div className="bz-field">
               <label htmlFor="modal-apelido">Apelido <span className="bz-field__optional">(opcional)</span></label>
               <input

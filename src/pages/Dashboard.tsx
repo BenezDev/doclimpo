@@ -240,6 +240,7 @@ export default function Dashboard() {
           onClose={() => setModal(false)}
           onLimite={abrirPlanosPorLimite}
           mostrarEmpresariais={plano === 'MEI'}
+          ufPadrao={perfilEndereco?.uf}
           onSuccess={() => {
             setModal(false)
             const primeiro = docs.length === 0

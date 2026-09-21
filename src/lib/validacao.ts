@@ -21,10 +21,17 @@ export const conviteSchema = z.object({
 
 export const planoSchema = z.enum(['individual', 'familia', 'mei'])
 
+// Dados auxiliares de IPVA/CRLV para sugerir o próximo prazo na renovação.
+export const extraSchema = z.object({
+  uf: z.string().length(2),
+  placa_final: z.enum(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']),
+}).strict()
+
 export const documentoSchema = z.object({
   tipo: z.enum(TIPOS_DOCUMENTO),
   apelido: z.string().trim().max(80, 'Apelido muito longo (máx. 80 caracteres).').optional(),
   data_vencimento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Informe uma data válida.'),
+  extra: extraSchema.optional(),
 })
 
 export const renovacaoSchema = z.object({

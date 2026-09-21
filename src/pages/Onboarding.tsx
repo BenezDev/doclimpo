@@ -11,6 +11,7 @@ import { supabase } from '../integrations/supabase/client'
 import { interpretarErro, textoDaFalha, type FalhaAoSalvar } from '../lib/erros'
 import { documentoSchema } from '../lib/validacao'
 import { documentIntent } from '../lib/public-content'
+import { SugestaoData, type ExtraVeicular } from '../components/ui/SugestaoData'
 
 const TIPOS = [
   { id: 'cnh', label: 'CNH', description: 'Carteira de motorista' },
@@ -37,6 +38,7 @@ export default function Onboarding() {
   const [tipo, setTipo] = useState(() => documentIntent(search))
   const [apelido, setApelido] = useState('')
   const [data, setData] = useState('')
+  const [extra, setExtra] = useState<ExtraVeicular | undefined>(undefined)
   const [loading, setLoading] = useState(false)
   const [falha, setFalha] = useState<FalhaAoSalvar | null>(null)
   const [mostrarEndereco, setMostrarEndereco] = useState(false)
@@ -58,7 +60,7 @@ export default function Onboarding() {
     setLoading(true)
     setFalha(null)
 
-    const validado = documentoSchema.safeParse({ tipo, apelido, data_vencimento: data })
+    const validado = documentoSchema.safeParse({ tipo, apelido, data_vencimento: data, extra })
     if (!validado.success) {
       setFalha({ tipo: 'generico', mensagem: validado.error.issues[0]?.message ?? 'Dados inválidos.' })
       setLoading(false)
@@ -70,6 +72,7 @@ export default function Onboarding() {
       tipo,
       apelido: apelido || null,
       data_vencimento: data,
+      extra: validado.data.extra ?? null,
     })
 
     if (error) {
@@ -164,9 +167,10 @@ export default function Onboarding() {
                     id="onboarding-data"
                     type="date"
                     value={data}
-                    onChange={event => setData(event.target.value)}
+                    onChange={event => { setData(event.target.value); setExtra(undefined) }}
                   />
                 </div>
+                <SugestaoData tipo={tipo} onEscolher={(sugerida, dados) => { setData(sugerida); setExtra(dados) }} />
                 <div className="bz-field">
                   <label htmlFor="onboarding-apelido">Apelido <span className="bz-field__optional">(opcional)</span></label>
                   <input

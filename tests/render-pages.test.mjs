@@ -167,6 +167,11 @@ test('diálogo de renovação sugere +1 ano e oferece encerrar sem novo prazo, s
   assert.match(html, /Renovar com novo prazo/)
   assert.match(html, /Encerrar sem novo prazo/)
   assert.match(html, /90, 30, 7 e 1 dia/)
+  assert.match(html, /Calcular pela idade/)
+  const ipva = renderToStaticMarkup(createElement(MemoryRouter, { initialEntries: ['/documento/y'] },
+    createElement(RenovarDialog, { documento: { id: 'y', tipo: 'ipva', apelido: null, data_vencimento: '2026-01-23', extra: { uf: 'SP', placa_final: '5' } }, nome: 'IPVA', onClose() {}, onRenovado() {}, onEncerrado() {} })))
+  assert.match(ipva, /Sugerir pelo calendário 2027/)
+  assert.match(ipva, /value="SP"/)
 })
 test('paywall lista os três planos, destaca o Individual e nunca envia preço ao servidor', async () => {
   const { PlanosModal } = await server.ssrLoadModule('/src/components/ui/PlanosModal.tsx')
