@@ -89,9 +89,11 @@ Deno.serve(async (req) => {
       throw new Error(`Falha no envio (Resend ${envio.status}): ${detalhe.slice(0, 200)}`);
     }
 
+    // Registro do teste: sem documento_id — um id vindo do cliente não passa
+    // por checagem de dono aqui, e o teste não é sobre um documento.
     const { data, error } = await supabase.from("notifications").insert({
       usuario_id: user.id,
-      documento_id: body.documento_id || null,
+      documento_id: null,
       notification_type: notificationType,
       scheduled_date: new Date().toISOString(),
       sent_date: new Date().toISOString(),

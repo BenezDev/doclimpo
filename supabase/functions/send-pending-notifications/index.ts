@@ -1,33 +1,48 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { compararSegredo } from "../_shared/seguranca.ts";
 import { escapeHtml } from "../_shared/html.ts";
+import { CANAIS, type Canal, formatarData, rotuloDocumento, textoAlerta } from "../_shared/notificacoes.ts";
 
-// check-expiring-documents apenas enfileira linhas em notifications.
-// Esta função é o elo que faltava: drena a fila e envia de fato.
+// check-expiring-documents apenas enfileira linhas em notifications, uma por
+// canal. Esta função drena a fila e envia cada linha pelo seu tipo.
 const LOTE = 100;
 const JANELA_RETENTATIVA_DIAS = 7;
 const APP_URL = Deno.env.get("APP_URL") ?? "https://www.doclimpo.com";
 const VERDE = "#0a7742";
 
-const LABELS: Record<string, string> = {
-  cnh: "CNH",
-  crlv: "CRLV",
-  ipva: "IPVA",
-  passaporte: "Passaporte",
-  rg: "RG",
-  seguro: "Seguro Auto",
-  plano_saude: "Plano de Saúde",
-  carteira_trabalho: "Carteira de Trabalho",
-  alvara: "Alvará",
-  certidao: "Certidão negativa",
-  das_mei: "DAS-MEI",
-  outro: "Documento",
-};
+interface Notificacao {
+  id: string;
+  usuario_id: string;
+  documento_id: string | null;
+  notification_type: Canal;
+  days_before_expiry: number | null;
+}
 
-function formatarData(iso: string) {
-  const [ano, mes, dia] = iso.split("-");
-  return `${dia}/${mes}/${ano}`;
+interface Perfil {
+  nome: string | null;
+  email: string | null;
+  notification_email: boolean;
+  notification_whatsapp: boolean;
+  whatsapp_number: string | null;
+  whatsapp_verificado_em: string | null;
+}
+
+interface Documento {
+  id: string;
+  tipo: string;
+  apelido: string | null;
+  data_vencimento: string;
+  resolvido: boolean;
+}
+
+// PENDING = falha transitória, a próxima rodada tenta de novo (até 7 dias).
+type Resultado = { estado: "SENT" | "SKIPPED" | "FAILED" | "PENDING"; detalhe?: string };
+
+interface Contexto {
+  supabase: SupabaseClient;
+  resendKey: string;
+  remetente: string;
 }
 
 function corpoEmail(opts: {
@@ -40,11 +55,7 @@ function corpoEmail(opts: {
   const rotuloSeguro = escapeHtml(rotuloDocumento);
   const nomeSeguro = nome ? escapeHtml(nome) : "";
   const venceu = diasRestantes !== null && diasRestantes <= 0;
-
-  const chamada = venceu
-    ? `Seu ${rotuloSeguro} venceu`
-    : `Seu ${rotuloSeguro} vence em ${diasRestantes} ${diasRestantes === 1 ? "dia" : "dias"}`;
-
+  const chamada = escapeHtml(textoAlerta(diasRestantes, rotuloDocumento).titulo);
   const cor = venceu ? "#a81e17" : diasRestantes !== null && diasRestantes <= 7 ? "#9c6009" : VERDE;
 
   return `<!doctype html>
@@ -86,6 +97,42 @@ function corpoEmail(opts: {
 </body></html>`;
 }
 
+async function enviarEmail(ctx: Contexto, n: Notificacao, perfil: Perfil, documento: Documento): Promise<Resultado> {
+  if (!perfil.email || perfil.notification_email === false) return { estado: "SKIPPED", detalhe: "email_desligado" };
+  const rotulo = rotuloDocumento(documento);
+  const dias = n.days_before_expiry;
+  const resposta = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${ctx.resendKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from: ctx.remetente,
+      to: [perfil.email],
+      // Provedores usam este header para oferecer "cancelar inscrição" na própria caixa de entrada.
+      headers: { "List-Unsubscribe": `<${APP_URL}/conta>` },
+      subject: `${dias !== null && dias <= 0 ? "⚠️ " : ""}${textoAlerta(dias, rotulo).titulo}`,
+      html: corpoEmail({ nome: perfil.nome, rotuloDocumento: rotulo, dataVencimento: documento.data_vencimento, diasRestantes: dias }),
+    }),
+  });
+  if (resposta.ok) return { estado: "SENT" };
+  const detalhe = `Resend ${resposta.status} ${(await resposta.text()).slice(0, 120)}`;
+  return { estado: resposta.status === 429 || resposta.status >= 500 ? "PENDING" : "FAILED", detalhe };
+}
+
+// Canais pagos: implementados nas fases seguintes. Até lá a fila não acumula.
+async function enviarPush(_ctx: Contexto, _n: Notificacao, _perfil: Perfil, _documento: Documento): Promise<Resultado> {
+  return await Promise.resolve({ estado: "SKIPPED", detalhe: "canal_nao_configurado" });
+}
+
+async function enviarWhatsapp(_ctx: Contexto, _n: Notificacao, _perfil: Perfil, _documento: Documento): Promise<Resultado> {
+  return await Promise.resolve({ estado: "SKIPPED", detalhe: "canal_nao_configurado" });
+}
+
+const ENVIADORES: Record<Canal, (ctx: Contexto, n: Notificacao, p: Perfil, d: Documento) => Promise<Resultado>> = {
+  EMAIL: enviarEmail,
+  PUSH: enviarPush,
+  WHATSAPP: enviarWhatsapp,
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -105,23 +152,21 @@ Deno.serve(async (req) => {
 
     const resendKey = Deno.env.get("RESEND_API_KEY");
     if (!resendKey) return responder({ error: "RESEND_API_KEY não configurada" }, 500);
-
     const remetente = Deno.env.get("EMAIL_FROM") ?? "DocLimpo <alertas@docalert.com.br>";
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
+    const ctx: Contexto = { supabase, resendKey, remetente };
 
-    const limiteRetentativa = new Date(
-      Date.now() - JANELA_RETENTATIVA_DIAS * 86400000,
-    ).toISOString();
+    const limiteRetentativa = new Date(Date.now() - JANELA_RETENTATIVA_DIAS * 86400000).toISOString();
 
     const { data: pendentes, error: erroFila } = await supabase
       .from("notifications")
-      .select("id, usuario_id, documento_id, days_before_expiry, content")
+      .select("id, usuario_id, documento_id, notification_type, days_before_expiry")
       .eq("status", "PENDING")
-      .eq("notification_type", "EMAIL")
+      .in("notification_type", [...CANAIS])
       .lte("scheduled_date", new Date().toISOString())
       .gte("scheduled_date", limiteRetentativa)
       .order("scheduled_date", { ascending: true })
@@ -130,81 +175,69 @@ Deno.serve(async (req) => {
     if (erroFila) throw new Error(`Erro ao ler a fila: ${erroFila.message}`);
 
     const resultado = { pendentes: pendentes?.length ?? 0, enviados: 0, pulados: 0, falhas: [] as string[] };
+    const planoCache = new Map<string, string>();
 
-    for (const notificacao of pendentes ?? []) {
+    const concluir = async (id: string, r: Resultado) => {
+      if (r.estado === "PENDING") return;
+      await supabase
+        .from("notifications")
+        .update({ status: r.estado, sent_date: new Date().toISOString(), detalhe: r.detalhe?.slice(0, 300) ?? null })
+        .eq("id", id);
+    };
+
+    for (const notificacao of (pendentes ?? []) as Notificacao[]) {
       try {
         const { data: perfil } = await supabase
           .from("profiles")
-          .select("nome, email, notification_email")
+          .select("nome, email, notification_email, notification_whatsapp, whatsapp_number, whatsapp_verificado_em")
           .eq("user_id", notificacao.usuario_id)
           .maybeSingle();
-
-        // Respeita a preferência do usuário e não tenta enviar sem destinatário.
-        if (!perfil?.email || perfil.notification_email === false) {
-          await supabase
-            .from("notifications")
-            .update({ status: "SKIPPED", sent_date: new Date().toISOString() })
-            .eq("id", notificacao.id);
+        if (!perfil) {
+          await concluir(notificacao.id, { estado: "SKIPPED", detalhe: "perfil_ausente" });
           resultado.pulados++;
           continue;
         }
 
         const { data: documento } = await supabase
           .from("documentos")
-          .select("tipo, apelido, data_vencimento, resolvido")
-          .eq("id", notificacao.documento_id)
+          .select("id, tipo, apelido, data_vencimento, resolvido")
+          .eq("id", notificacao.documento_id ?? "")
           .maybeSingle();
-
         // Documento renovado ou removido entre o enfileiramento e o envio.
         if (!documento || documento.resolvido) {
-          await supabase
-            .from("notifications")
-            .update({ status: "SKIPPED", sent_date: new Date().toISOString() })
-            .eq("id", notificacao.id);
+          await concluir(notificacao.id, { estado: "SKIPPED", detalhe: "documento_resolvido" });
           resultado.pulados++;
           continue;
         }
 
-        const rotulo = documento.apelido || LABELS[documento.tipo] || "documento";
-        const dias = notificacao.days_before_expiry;
+        // Push e WhatsApp são benefícios pagos: o gate vale aqui, no servidor,
+        // mesmo que a linha tenha sido enfileirada quando o plano era outro.
+        if (notificacao.notification_type !== "EMAIL") {
+          let plano = planoCache.get(notificacao.usuario_id);
+          if (!plano) {
+            const { data } = await supabase.rpc("plano_efetivo", { uid: notificacao.usuario_id });
+            plano = typeof data === "string" ? data : "FREE";
+            planoCache.set(notificacao.usuario_id, plano);
+          }
+          if (plano === "FREE") {
+            await concluir(notificacao.id, { estado: "SKIPPED", detalhe: "plano_free" });
+            resultado.pulados++;
+            continue;
+          }
+        }
 
-        const resposta = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${resendKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            from: remetente,
-            to: [perfil.email],
-            // Provedores usam este header para oferecer "cancelar inscrição" na própria caixa de entrada.
-            headers: { "List-Unsubscribe": `<${APP_URL}/conta>` },
-            subject:
-              dias !== null && dias <= 0
-                ? `⚠️ Seu ${rotulo} venceu`
-                : `Seu ${rotulo} vence em ${dias} ${dias === 1 ? "dia" : "dias"}`,
-            html: corpoEmail({
-              nome: perfil.nome,
-              rotuloDocumento: rotulo,
-              dataVencimento: documento.data_vencimento,
-              diasRestantes: dias,
-            }),
-          }),
-        });
-
-        if (!resposta.ok) {
-          // Continua PENDING para a próxima rodada tentar de novo.
-          const detalhe = await resposta.text();
-          resultado.falhas.push(`${notificacao.id}: Resend ${resposta.status} ${detalhe.slice(0, 120)}`);
+        const enviar = ENVIADORES[notificacao.notification_type];
+        if (!enviar) {
+          await concluir(notificacao.id, { estado: "FAILED", detalhe: "canal_desconhecido" });
+          resultado.falhas.push(`${notificacao.id}: canal ${notificacao.notification_type}`);
           continue;
         }
 
-        await supabase
-          .from("notifications")
-          .update({ status: "SENT", sent_date: new Date().toISOString() })
-          .eq("id", notificacao.id);
-
-        resultado.enviados++;
+        const r = await enviar(ctx, notificacao, perfil as Perfil, documento as Documento);
+        await concluir(notificacao.id, r);
+        if (r.estado === "SENT") resultado.enviados++;
+        else if (r.estado === "SKIPPED") resultado.pulados++;
+        else resultado.falhas.push(`${notificacao.id}/${notificacao.notification_type}: ${r.detalhe ?? r.estado}`);
       } catch (erro) {
         const msg = erro instanceof Error ? erro.message : String(erro);
         resultado.falhas.push(`${notificacao.id}: ${msg}`);
@@ -213,8 +246,9 @@ Deno.serve(async (req) => {
 
     console.log("send-pending-notifications:", JSON.stringify(resultado));
 
-    // Falhas ficam PENDING para retentativa, mas alguém precisa saber que elas
-    // existem. Com ADMIN_EMAIL definido, um resumo vai para o operador.
+    // Falhas ficam PENDING (transitórias) ou FAILED (permanentes), mas alguém
+    // precisa saber que elas existem. Com ADMIN_EMAIL definido, um resumo vai
+    // para o operador.
     const adminEmail = Deno.env.get("ADMIN_EMAIL");
     if (adminEmail && resultado.falhas.length > 0) {
       await fetch("https://api.resend.com/emails", {

@@ -1,11 +1,82 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { compararSegredo } from "../_shared/seguranca.ts";
+import { type Canal, canaisParaUsuario, rotuloDocumento, textoAlerta } from "../_shared/notificacoes.ts";
 
 // Janelas alinhadas com o que a interface promete ao usuário (90/30/7),
-// mais um lembrete na véspera. Antes o código usava 30/15/7/3/1, que não
-// batia com nenhuma tela.
+// mais um lembrete na véspera. Espelhadas em src/lib/planos.ts (JANELAS_ALERTA).
 const ALERT_DAYS = [90, 30, 7, 1];
+
+interface DocumentoFila {
+  id: string;
+  usuario_id: string;
+  tipo: string;
+  apelido: string | null;
+}
+
+// Canais que cada usuário pode receber hoje: preferências + plano efetivo
+// (a mesma função SQL da trigger de limite) + dispositivos de push. Cache por
+// rodada: um usuário com vários documentos é consultado uma vez.
+async function resolverCanais(supabase: SupabaseClient, cache: Map<string, Canal[]>, usuarioId: string): Promise<Canal[]> {
+  const guardado = cache.get(usuarioId);
+  if (guardado) return guardado;
+
+  const { data: perfil } = await supabase
+    .from("profiles")
+    .select("notification_email, notification_whatsapp, whatsapp_verificado_em")
+    .eq("user_id", usuarioId)
+    .maybeSingle();
+  const { data: plano } = await supabase.rpc("plano_efetivo", { uid: usuarioId });
+  const { count } = await supabase
+    .from("push_subscriptions")
+    .select("id", { count: "exact", head: true })
+    .eq("usuario_id", usuarioId);
+
+  const canais = canaisParaUsuario({
+    plano: typeof plano === "string" ? plano : "FREE",
+    notificationEmail: perfil?.notification_email !== false,
+    notificationWhatsapp: perfil?.notification_whatsapp === true,
+    whatsappVerificado: Boolean(perfil?.whatsapp_verificado_em),
+    pushCount: count ?? 0,
+  });
+  cache.set(usuarioId, canais);
+  return canais;
+}
+
+// Uma linha por canal. O índice único (documento, janela, canal) garante a
+// idempotência mesmo se duas rodadas se cruzarem: 23505 = já enfileirado.
+async function enfileirar(
+  supabase: SupabaseClient,
+  doc: DocumentoFila,
+  dias: number,
+  canais: Canal[],
+): Promise<{ criadas: number; erros: string[] }> {
+  const resultado = { criadas: 0, erros: [] as string[] };
+  const { titulo } = textoAlerta(dias, rotuloDocumento(doc));
+  for (const canal of canais) {
+    const { data: existente } = await supabase
+      .from("notifications")
+      .select("id")
+      .eq("documento_id", doc.id)
+      .eq("days_before_expiry", dias)
+      .eq("notification_type", canal)
+      .limit(1);
+    if (existente && existente.length > 0) continue;
+
+    const { error } = await supabase.from("notifications").insert({
+      usuario_id: doc.usuario_id,
+      documento_id: doc.id,
+      notification_type: canal,
+      status: "PENDING",
+      days_before_expiry: dias,
+      scheduled_date: new Date().toISOString(),
+      content: titulo,
+    });
+    if (error && error.code !== "23505") resultado.erros.push(`${doc.id}/${canal}: ${error.message}`);
+    else if (!error) resultado.criadas++;
+  }
+  return resultado;
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -36,38 +107,30 @@ Deno.serve(async (req) => {
       statuses_updated: 0,
       errors: [] as string[],
     };
+    const canaisCache = new Map<string, Canal[]>();
 
-    // 1. Update expired documents
+    // 1. Documentos que venceram desde a última rodada: status + aviso (janela 0).
     const { data: expiredDocs, error: expiredError } = await supabase
       .from("documentos")
       .update({ status: "EXPIRED" })
       .lt("data_vencimento", today.toISOString().split("T")[0])
       .neq("status", "EXPIRED")
       .eq("resolvido", false)
-      .select("id, usuario_id, tipo, apelido, numero_documento, data_vencimento");
+      .select("id, usuario_id, tipo, apelido");
 
     if (expiredError) {
       results.errors.push(`Expired update error: ${expiredError.message}`);
     } else if (expiredDocs) {
       results.statuses_updated += expiredDocs.length;
-
-      // Create notifications for newly expired docs
       for (const doc of expiredDocs) {
-        const docLabel = doc.apelido || doc.tipo;
-        await supabase.from("notifications").insert({
-          usuario_id: doc.usuario_id,
-          documento_id: doc.id,
-          notification_type: "EMAIL",
-          status: "PENDING",
-          days_before_expiry: 0,
-          scheduled_date: new Date().toISOString(),
-          content: `⚠️ Seu documento "${docLabel}" venceu! Regularize o mais rápido possível para evitar multas.`,
-        });
-        results.notifications_created++;
+        const canais = await resolverCanais(supabase, canaisCache, doc.usuario_id);
+        const { criadas, erros } = await enfileirar(supabase, doc, 0, canais);
+        results.notifications_created += criadas;
+        results.errors.push(...erros);
       }
     }
 
-    // 2. Check documents expiring in each alert window
+    // 2. Documentos que vencem em cada janela.
     for (const days of ALERT_DAYS) {
       const targetDate = new Date(today);
       targetDate.setDate(targetDate.getDate() + days);
@@ -75,7 +138,7 @@ Deno.serve(async (req) => {
 
       const { data: docs, error: docsError } = await supabase
         .from("documentos")
-        .select("id, usuario_id, tipo, apelido, numero_documento, data_vencimento")
+        .select("id, usuario_id, tipo, apelido")
         .eq("data_vencimento", targetDateStr)
         .eq("resolvido", false);
 
@@ -87,7 +150,6 @@ Deno.serve(async (req) => {
       if (!docs || docs.length === 0) continue;
       results.checked += docs.length;
 
-      // Update status to EXPIRING_SOON for docs within 30 days
       if (days <= 30) {
         const docIds = docs.map((d) => d.id);
         const { error: updateErr } = await supabase
@@ -104,52 +166,18 @@ Deno.serve(async (req) => {
       }
 
       for (const doc of docs) {
-        // Check if notification already exists for this doc + days_before
-        const { data: existing } = await supabase
-          .from("notifications")
-          .select("id")
-          .eq("documento_id", doc.id)
-          .eq("days_before_expiry", days)
-          .limit(1);
-
-        if (existing && existing.length > 0) continue;
-
-        // Check user alert preferences
+        // Configuração por documento (tabela legada; nada no app escreve nela).
         const { data: alertConfig } = await supabase
           .from("alertas_configuracao")
-          .select("ativo, via_email, dias_antes")
+          .select("ativo, dias_antes")
           .eq("documento_id", doc.id)
           .eq("usuario_id", doc.usuario_id);
+        if (alertConfig && alertConfig.length > 0 && !alertConfig.some((cfg) => cfg.ativo && cfg.dias_antes === days)) continue;
 
-        // If user has config, check if this alert window is enabled
-        if (alertConfig && alertConfig.length > 0) {
-          const hasMatchingConfig = alertConfig.some(
-            (cfg) => cfg.ativo && cfg.dias_antes === days
-          );
-          if (!hasMatchingConfig) continue;
-        }
-
-        const docLabel = doc.apelido || doc.tipo;
-        const urgencyEmoji = days <= 3 ? "🚨" : days <= 7 ? "⚠️" : "📋";
-        const content = `${urgencyEmoji} Seu documento "${docLabel}" vence em ${days} dia${days > 1 ? "s" : ""}! Renove antes do vencimento para evitar multas.`;
-
-        const { error: insertErr } = await supabase
-          .from("notifications")
-          .insert({
-            usuario_id: doc.usuario_id,
-            documento_id: doc.id,
-            notification_type: "EMAIL",
-            status: "PENDING",
-            days_before_expiry: days,
-            scheduled_date: new Date().toISOString(),
-            content,
-          });
-
-        if (insertErr) {
-          results.errors.push(`Notification insert error: ${insertErr.message}`);
-        } else {
-          results.notifications_created++;
-        }
+        const canais = await resolverCanais(supabase, canaisCache, doc.usuario_id);
+        const { criadas, erros } = await enfileirar(supabase, doc, days, canais);
+        results.notifications_created += criadas;
+        results.errors.push(...erros);
       }
     }
 

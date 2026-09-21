@@ -24,6 +24,26 @@ export interface Plano {
 
 export const LIMITE_DOCUMENTOS_FREE = 1
 
+// Canais de aviso. E-mail em todo plano; push e WhatsApp só nos pagos — o
+// gate vale no servidor (send-pending-notifications) e aqui só para a UI.
+export const CANAIS = ['EMAIL', 'PUSH', 'WHATSAPP'] as const
+export type Canal = (typeof CANAIS)[number]
+export const CANAIS_PAGOS: readonly Canal[] = ['PUSH', 'WHATSAPP']
+export const ROTULO_CANAL: Record<Canal, string> = { EMAIL: 'E-mail', PUSH: 'Notificação no navegador', WHATSAPP: 'WhatsApp' }
+
+// Interruptor de lançamento do WhatsApp (padrão de `legalPublished`). Só vira
+// true quando o número e os templates estiverem aprovados na Meta e os
+// segredos WHATSAPP_* configurados — antes disso a cópia não promete o canal.
+export const WHATSAPP_DISPONIVEL = false
+
+export function canaisDoPlano(plano: PlanType): Canal[] {
+  const canais: Canal[] = ['EMAIL']
+  if (!ehPago(plano)) return canais
+  canais.push('PUSH')
+  if (WHATSAPP_DISPONIVEL) canais.push('WHATSAPP')
+  return canais
+}
+
 // Espelho de ALERT_DAYS em check-expiring-documents: dias antes do vencimento
 // em que cada aviso sai. Mudou lá, muda aqui.
 export const JANELAS_ALERTA = [90, 30, 7, 1] as const
