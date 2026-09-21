@@ -35,15 +35,21 @@ Tailwind de verdade, note que a v4 configura por CSS — não existe
 ```
 src/
   pages/          Landing_1 · Login (com recuperação de senha) · RedefinirSenha · Onboarding ·
-                  Dashboard · DocumentoDetalhe · Conta · Privacy · Termos · ThankYou · NotFound
-  components/ui/  AddDocumentModal · EnderecoModal · OndeRenovar · CookieConsent · PublicShell · Bezel
+                  Dashboard · DocumentoDetalhe · Conta · Privacy · Termos · ThankYou · NotFound ·
+                  DocumentosHub e DocumentoPublico (/documentos/<tipo>, SEO)
+  components/ui/  AddDocumentModal · EnderecoModal · OndeRenovar · RenovarDialog · SugestaoData ·
+                  CookieConsent · PublicShell · Bezel
   context/        auth-context.ts (contexto) · AuthContext.tsx (provider)
-  hooks/          useAuth
-  lib/            erros.ts (tradução de erros do banco)
+  hooks/          useAuth · usePlano (rpc meu_plano com fallback em plan_type)
+  lib/            datas.ts (parse por partes, dias, formatação) · erros.ts · planos.ts (catálogo,
+                  canais, WHATSAPP_DISPONIVEL) · agenda.ts (.ics/Google Agenda) · cnh.ts ·
+                  calendario-veicular.ts · push.ts · telefone.ts · documentos-publicos.ts
+  data/           calendario-veicular.ts (IPVA/licenciamento por UF e placa, só fonte oficial)
   integrations/supabase/  client.ts (único client, tipado) · types.ts
+public/sw.js      service worker só de push (sem cache)
 supabase/
-  migrations/     8 migrations
-  functions/      10 Edge Functions Deno
+  migrations/     migrations SQL (aplicadas em produção via MCP; arquivo espelha o que subiu)
+  functions/      14 Edge Functions Deno; _shared/notificacoes.ts é puro e testado em Node
 ```
 
 `AuthContext.tsx` só exporta o provider e `hooks/useAuth.ts` só o hook — separados
@@ -68,12 +74,24 @@ Pontos a saber:
 ## Alertas
 
 ```
-pg_cron 09:00 BRT → check-expiring-documents → enfileira em notifications
-pg_cron a cada hora → send-pending-notifications → envia via Resend
+pg_cron 09:00 BRT → check-expiring-documents → uma linha em notifications por (documento, janela, canal)
+pg_cron a cada hora → send-pending-notifications → EMAIL via Resend · PUSH via jsr:@negrel/webpush · WHATSAPP via Meta Cloud API
 ```
 
-Janelas: **90 / 30 / 7 / 1** dias. Se mudar, alinhe os três lugares que prometem
-prazos ao usuário: landing, onboarding e tela de detalhe.
+Canais: e-mail em todo plano; push e WhatsApp só nos pagos — o gate é no servidor
+(`plano_efetivo`) tanto ao enfileirar quanto ao enviar. `notifications.detalhe` guarda o motivo
+de SKIPPED/FAILED. Push: tabela `push_subscriptions` (allowlist de hosts no CHECK, em
+`_shared/notificacoes.ts` e em `src/lib/push.ts` — os três devem ser idênticos), segredos
+`VAPID_*`. WhatsApp: número verificado por código em `whatsapp-verificar`; colunas `whatsapp_*`
+de `profiles` só mudam pelo servidor (trigger `protect_whatsapp_columns`); a interface e a cópia só
+mostram o canal com `WHATSAPP_DISPONIVEL = true` em `src/lib/planos.ts`.
+
+Janelas: **90 / 30 / 7 / 1** dias (`JANELAS_ALERTA` em `planos.ts`, espelho de `ALERT_DAYS`).
+Se mudar, alinhe os lugares que prometem prazos ao usuário: landing, onboarding, tela de
+detalhe, `.ics` e textos legais.
+
+Renovação: `rpc('renovar_documento')` resolve a linha antiga e cria a nova (`renovado_de`);
+alertas recomeçam porque o id é novo. O Dashboard mostra o histórico na aba Resolvidos.
 
 `check-expiring-documents` e `send-pending-notifications` exigem o header
 `x-cron-secret`. As demais validam JWT manualmente via `auth.getUser()` — o
