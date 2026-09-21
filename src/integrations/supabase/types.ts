@@ -163,6 +163,7 @@ export type Database = {
           content: string | null
           criado_em: string
           days_before_expiry: number | null
+          detalhe: string | null
           documento_id: string | null
           id: string
           notification_type: string
@@ -176,6 +177,7 @@ export type Database = {
           content?: string | null
           criado_em?: string
           days_before_expiry?: number | null
+          detalhe?: string | null
           documento_id?: string | null
           id?: string
           notification_type?: string
@@ -189,6 +191,7 @@ export type Database = {
           content?: string | null
           criado_em?: string
           days_before_expiry?: number | null
+          detalhe?: string | null
           documento_id?: string | null
           id?: string
           notification_type?: string
@@ -274,6 +277,8 @@ export type Database = {
           uf: string | null
           user_id: string
           whatsapp_number: string | null
+          whatsapp_optin_em: string | null
+          whatsapp_verificado_em: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -302,6 +307,8 @@ export type Database = {
           uf?: string | null
           user_id: string
           whatsapp_number?: string | null
+          whatsapp_optin_em?: string | null
+          whatsapp_verificado_em?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -330,6 +337,41 @@ export type Database = {
           uf?: string | null
           user_id?: string
           whatsapp_number?: string | null
+          whatsapp_optin_em?: string | null
+          whatsapp_verificado_em?: string | null
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          criado_em: string
+          endpoint: string
+          id: string
+          p256dh: string
+          ultimo_uso_em: string | null
+          user_agent: string | null
+          usuario_id: string
+        }
+        Insert: {
+          auth: string
+          criado_em?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          ultimo_uso_em?: string | null
+          user_agent?: string | null
+          usuario_id: string
+        }
+        Update: {
+          auth?: string
+          criado_em?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          ultimo_uso_em?: string | null
+          user_agent?: string | null
+          usuario_id?: string
         }
         Relationships: []
       }
@@ -491,6 +533,10 @@ export type Database = {
       minha_familia: {
         Args: Record<PropertyKey, never>
         Returns: { papel: string; familia_id: string; titular_nome: string | null }[]
+      }
+      plano_efetivo: {
+        Args: { uid: string }
+        Returns: string
       }
     }
     Enums: {

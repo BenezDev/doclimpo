@@ -99,7 +99,7 @@ export function PlanosModal({ onClose, motivo = 'escolha', planoAtual = 'FREE' }
           <p className="bz-modal__lead">
             {motivo === 'limite'
               ? 'Para acompanhar mais documentos, escolha um plano. O pagamento é feito no Stripe e a assinatura pode ser cancelada a qualquer momento.'
-              : 'Todos os planos incluem documentos ilimitados, alertas por e-mail e o guia de renovação.'}
+              : 'Todos os planos incluem documentos ilimitados, alertas por e-mail e notificações no navegador, além do guia de renovação.'}
           </p>
 
           <div className="planos-grid" role="list" aria-label="Planos disponíveis">

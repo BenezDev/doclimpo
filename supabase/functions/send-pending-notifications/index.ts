@@ -3,6 +3,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { compararSegredo } from "../_shared/seguranca.ts";
 import { escapeHtml } from "../_shared/html.ts";
 import { CANAIS, type Canal, formatarData, rotuloDocumento, textoAlerta } from "../_shared/notificacoes.ts";
+import { carregarServidorPush, enviarPush as enviarPushWeb } from "../_shared/push.ts";
 
 // check-expiring-documents apenas enfileira linhas em notifications, uma por
 // canal. Esta função drena a fila e envia cada linha pelo seu tipo.
@@ -118,12 +119,49 @@ async function enviarEmail(ctx: Contexto, n: Notificacao, perfil: Perfil, docume
   return { estado: resposta.status === 429 || resposta.status >= 500 ? "PENDING" : "FAILED", detalhe };
 }
 
-// Canais pagos: implementados nas fases seguintes. Até lá a fila não acumula.
-async function enviarPush(_ctx: Contexto, _n: Notificacao, _perfil: Perfil, _documento: Documento): Promise<Resultado> {
-  return await Promise.resolve({ estado: "SKIPPED", detalhe: "canal_nao_configurado" });
+// Push: uma mensagem por dispositivo do usuário. Assinatura morta (404/410)
+// é apagada na hora; basta um dispositivo entregue para a linha virar SENT.
+async function enviarPush(ctx: Contexto, n: Notificacao, _perfil: Perfil, documento: Documento): Promise<Resultado> {
+  const app = await carregarServidorPush();
+  if (!app) return { estado: "SKIPPED", detalhe: "canal_nao_configurado" };
+
+  const { data: assinaturas } = await ctx.supabase
+    .from("push_subscriptions")
+    .select("id, endpoint, p256dh, auth")
+    .eq("usuario_id", n.usuario_id);
+  if (!assinaturas || assinaturas.length === 0) return { estado: "SKIPPED", detalhe: "sem_dispositivo" };
+
+  const rotulo = rotuloDocumento(documento);
+  const dias = n.days_before_expiry;
+  const carga = {
+    title: textoAlerta(dias, rotulo).titulo,
+    body: `Vencimento ${formatarData(documento.data_vencimento)}. Toque para ver o passo a passo.`,
+    url: `/documento/${documento.id}`,
+    tag: `doc-${documento.id}-${dias ?? 0}`,
+  };
+  const topic = `${documento.id.replace(/-/g, "").slice(0, 24)}-${dias ?? 0}`;
+
+  let entregues = 0;
+  let transitorias = 0;
+  const detalhes: string[] = [];
+  for (const assinatura of assinaturas) {
+    const r = await enviarPushWeb(app, assinatura, carga, { topic, urgencia: dias !== null && dias <= 7 ? "high" : "normal" });
+    if (r.ok) {
+      entregues++;
+      await ctx.supabase.from("push_subscriptions").update({ ultimo_uso_em: new Date().toISOString() }).eq("id", assinatura.id);
+      continue;
+    }
+    detalhes.push(r.detalhe);
+    if (r.remover) await ctx.supabase.from("push_subscriptions").delete().eq("id", assinatura.id);
+    else if (r.retentar) transitorias++;
+  }
+  if (entregues > 0) return { estado: "SENT", detalhe: `${entregues}/${assinaturas.length} dispositivos` };
+  if (transitorias > 0) return { estado: "PENDING", detalhe: detalhes.join("; ") };
+  return { estado: "SKIPPED", detalhe: detalhes.join("; ").slice(0, 300) || "sem_dispositivo" };
 }
 
-async function enviarWhatsapp(_ctx: Contexto, _n: Notificacao, _perfil: Perfil, _documento: Documento): Promise<Resultado> {
+// WhatsApp: entra na fase seguinte. Até lá a fila não acumula.
+async function enviarWhatsapp(): Promise<Resultado> {
   return await Promise.resolve({ estado: "SKIPPED", detalhe: "canal_nao_configurado" });
 }
 

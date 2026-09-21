@@ -13,7 +13,7 @@ import {
   X,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   Brand,
   Button,
@@ -26,7 +26,8 @@ import { OndeRenovar } from '../components/ui/OndeRenovar'
 import { useAuth } from '../hooks/useAuth'
 import { useTheme } from '../hooks/useTheme'
 import { diasRestantes, formatarDataLonga, statusPorDias } from '../lib/datas'
-import { JANELAS_ALERTA } from '../lib/planos'
+import { JANELAS_ALERTA, ROTULO_CANAL, canaisDoPlano, ehPago } from '../lib/planos'
+import { usePlano } from '../hooks/usePlano'
 import { gerarIcs, linkGoogleAgenda, nomeArquivoIcs } from '../lib/agenda'
 import { supabase } from '../integrations/supabase/client'
 import type { PerfilEndereco } from '../lib/endereco'
@@ -119,6 +120,7 @@ export default function DocumentoDetalhe() {
   const navigate = useNavigate()
   const { dark, toggleTheme } = useTheme()
   const { user } = useAuth()
+  const { plano } = usePlano()
   const reduceMotion = useReducedMotion()
   const [document, setDocument] = useState<Tables<'documentos'> | null>(null)
   const [loading, setLoading] = useState(true)
@@ -379,10 +381,15 @@ export default function DocumentoDetalhe() {
                   <div className="detail-alert-list__row" key={window}>
                     <span className="bz-data">D-{window.toString().padStart(2, '0')}</span>
                     <p>{window === 1 ? '1 dia antes' : `${window} dias antes`}</p>
-                    <strong>E-mail</strong>
+                    <strong>{canaisDoPlano(plano).map(canal => ROTULO_CANAL[canal]).join(' · ')}</strong>
                   </div>
                 ))}
               </div>
+              {!ehPago(plano) && (
+                <p className="detail-alert-list__nota">
+                  Notificações no navegador fazem parte dos planos pagos. <Link to="/conta">Ver planos</Link>
+                </p>
+              )}
             </section>
           </div>
 

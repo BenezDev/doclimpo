@@ -46,7 +46,7 @@ const steps = [
 ]
 
 const features = [
-  { icon: Mail, title: 'Alertas por e-mail', text: 'Avisos em 90, 30, 7 e 1 dia antes do vencimento, enviados ao e-mail da conta.' },
+  { icon: Mail, title: 'Alertas por e-mail e no navegador', text: 'Avisos em 90, 30, 7 e 1 dia antes do vencimento por e-mail. Nos planos pagos, também como notificação no navegador ou celular.' },
   { icon: MapPin, title: 'Onde renovar, por documento', text: 'Cada documento mostra o órgão responsável. Com seu CEP, opcional, aparece a unidade mais próxima.' },
   { icon: PencilLine, title: 'Apelido e data editáveis', text: 'Dê um nome ao documento e ajuste a data quando renovar.' },
   { icon: CheckCircle2, title: 'Marcar como renovado', text: 'Renovou? Marque o documento e ele sai da lista de vencimentos.' },

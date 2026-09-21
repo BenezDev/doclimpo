@@ -534,7 +534,8 @@ h1, h2, h3, h4 { color: var(--bz-text); font-weight: 600; }
 .detail-alert-list__row:last-child { border-bottom: 0; }
 .detail-alert-list__row > span { color: var(--bz-text); font-size: 11px; font-weight: 500; }
 .detail-alert-list__row p { margin: 0; color: var(--bz-text-muted); font-size: 11px; }
-.detail-alert-list__row strong { color: var(--bz-accent-ink); font-size: 11px; font-weight: 500; }
+.detail-alert-list__row strong { color: var(--bz-accent-ink); font-size: 11px; font-weight: 500; text-align: right; }
+.detail-alert-list__nota { margin: 12px 0 0; color: var(--bz-text-muted); font-size: 12px; }
 
 .detail-guide { padding: 28px; background: var(--bz-surface); border: 1px solid var(--bz-hairline); border-radius: 20px; }
 .detail-guide__header { max-width: 620px; margin-bottom: 28px; }

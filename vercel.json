@@ -14,6 +14,11 @@
       "continue": true
     },
     {
+      "src": "/sw.js",
+      "headers": { "Cache-Control": "no-cache" },
+      "continue": true
+    },
+    {
       "src": "/",
       "dest": "/index.html"
     },

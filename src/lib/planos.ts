@@ -58,7 +58,7 @@ export const PLANOS: Plano[] = [
     pessoas: 1,
     destaque: true,
     descricao: 'Para quem cuida dos próprios documentos.',
-    beneficios: ['Documentos ilimitados', 'Alertas por e-mail em 90, 30, 7 e 1 dia', 'Onde renovar e roteiro por documento'],
+    beneficios: ['Documentos ilimitados', 'Alertas por e-mail e notificações no navegador em 90, 30, 7 e 1 dia', 'Onde renovar e roteiro por documento'],
   },
   {
     id: 'MEI',

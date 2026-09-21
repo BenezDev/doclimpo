@@ -34,7 +34,7 @@ for (const path of checks) {
   assert.equal(status, meta.path === '/404' ? 404 : 200, `Status configurado incorreto: ${path}`)
   for (const match of html.matchAll(/(?:src|href)="(\/assets\/[^"?#]+)"/g)) assert.ok(await fileExists(match[1]), `Asset ausente: ${match[1]}`)
 }
-for (const path of ['/favicon.svg', '/favicon.ico', '/apple-touch-icon.png', '/icon-192.png', '/icon-512.png', '/site.webmanifest', '/og.png']) {
+for (const path of ['/favicon.svg', '/favicon.ico', '/apple-touch-icon.png', '/icon-192.png', '/icon-512.png', '/site.webmanifest', '/og.png', '/sw.js']) {
   const route = await resolveConfiguredRoute(path)
   assert.equal(route.file, path)
   assert.equal(route.status, 200)

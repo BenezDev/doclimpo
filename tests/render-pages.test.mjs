@@ -113,7 +113,7 @@ test('política informa escopo real, bases legais, controles da conta e fontes o
   assert.doesNotMatch(html, /Minuta em revisão/)
   assert.match(html, /Responsável pelo tratamento:<\/strong> \S/)
   assert.match(html, /mailto:/)
-  for (const text of ['Supabase', 'Resend', 'Google Fonts', 'ViaCEP', 'Retenção e exclusão', 'Responsável e contato', 'Bases legais', 'Encarregado de dados']) assert.ok(html.includes(text), text)
+  for (const text of ['Supabase', 'Resend', 'Google Fonts', 'ViaCEP', 'Serviços de push do navegador', 'Retenção e exclusão', 'Responsável e contato', 'Bases legais', 'Encarregado de dados']) assert.ok(html.includes(text), text)
   assert.match(html, /endereço residencial/)
   assert.match(html, /href="\/conta"/)
   assert.match(html, /https:\/\/www.gov.br\/anpd\//)
@@ -146,7 +146,7 @@ test('redefinição de senha sem sessão não mostra formulário; com sessão pe
 })
 test('conta expõe alertas, senha, endereço, plano, exportação e exclusão sem tocar no backend na renderização', async () => {
   const html = await renderPage('Conta', '/conta', { user: { id: 'fixture-user', email: 'pessoa@example.test', user_metadata: { nome: 'Pessoa' } } })
-  for (const text of ['Avisos por e-mail', 'Enviar e-mail de teste', 'Trocar senha', 'Onde renovar perto de você', 'Plano gratuito', 'Ver planos', 'Exportar meus dados', 'Excluir conta', 'pessoa@example.test']) assert.ok(html.includes(text), text)
+  for (const text of ['Avisos por e-mail', 'Enviar e-mail de teste', 'Notificações no navegador', 'Trocar senha', 'Onde renovar perto de você', 'Plano gratuito', 'Ver planos', 'Exportar meus dados', 'Excluir conta', 'pessoa@example.test']) assert.ok(html.includes(text), text)
   assert.match(html, /role="switch"/)
   assert.match(html, /href="\/termos"/)
   assert.match(html, /href="\/privacidade"/)

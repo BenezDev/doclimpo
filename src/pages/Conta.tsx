@@ -1,6 +1,8 @@
 import { motion, useReducedMotion } from 'framer-motion'
 import {
   ArrowLeft,
+  BellOff,
+  BellPlus,
   BellRing,
   CircleAlert,
   CheckCircle2,
@@ -8,6 +10,7 @@ import {
   KeyRound,
   MailCheck,
   MapPin,
+  MonitorSmartphone,
   Send,
   Trash2,
   UserMinus,
@@ -28,6 +31,7 @@ import { validateNewPassword } from '../lib/access-flow'
 import { resumoEndereco, temEndereco, type PerfilEndereco } from '../lib/endereco'
 import { bezelSpring } from '../lib/motion'
 import { LIMITE_PESSOAS_FAMILIA, ehPago, formatarPreco, normalizarPlano, planoPorId, rotuloPlano, urlStripeSegura } from '../lib/planos'
+import { ehIosSemPwa, pushSubscriptionSchema, suportaPush, urlBase64ToUint8Array } from '../lib/push'
 import { conviteSchema } from '../lib/validacao'
 
 interface PerfilConta extends PerfilEndereco {
@@ -45,6 +49,12 @@ const ENDERECO_VAZIO: PerfilEndereco = {
 }
 
 type Aviso = { tipo: 'sucesso' | 'erro'; texto: string } | null
+
+// Estado do push neste navegador. Só é calculado em effect (nunca no render):
+// os testes de SSR não têm navigator.
+type PushEstado = 'verificando' | 'sem-suporte' | 'ios-sem-pwa' | 'negado' | 'inativo' | 'ativo'
+
+const ehStandalone = () => window.matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true
 
 interface Membro { id: string; email: string; status: string; user_id: string | null }
 interface Familia { papel: 'titular' | 'membro'; familiaId: string; titularNome: string | null }
@@ -86,6 +96,11 @@ export default function Conta() {
   const [avisoAlertas, setAvisoAlertas] = useState<Aviso>(null)
   const [enviandoTeste, setEnviandoTeste] = useState(false)
   const [salvandoPreferencia, setSalvandoPreferencia] = useState(false)
+
+  const [pushEstado, setPushEstado] = useState<PushEstado>('verificando')
+  const [pushDispositivos, setPushDispositivos] = useState(0)
+  const [pushOcupado, setPushOcupado] = useState(false)
+  const [avisoPush, setAvisoPush] = useState<Aviso>(null)
 
   const [senha, setSenha] = useState('')
   const [confirmacao, setConfirmacao] = useState('')
@@ -205,6 +220,96 @@ export default function Conta() {
     setAvisoPlano({ tipo: 'sucesso', texto: 'Você saiu da família. Seus documentos continuam salvos; o plano volta ao gratuito.' })
     setFamiliaVersao(value => value + 1)
     recarregarPlano()
+  }
+
+  // Push: o que este navegador já tem (service worker + assinatura) e quantos
+  // dispositivos a conta ativou. Só faz sentido em plano pago.
+  useEffect(() => {
+    if (!user || !ehPago(plano)) return
+    let cancelled = false
+    const verificar = async () => {
+      const suporte = suportaPush({ hasServiceWorker: 'serviceWorker' in navigator, hasPushManager: 'PushManager' in window, hasNotification: 'Notification' in window })
+      if (!suporte) { setPushEstado(ehIosSemPwa(navigator.userAgent, ehStandalone()) ? 'ios-sem-pwa' : 'sem-suporte'); return }
+      if (Notification.permission === 'denied') { setPushEstado('negado'); return }
+      const registro = await navigator.serviceWorker.getRegistration('/sw.js')
+      const assinatura = await registro?.pushManager.getSubscription()
+      const { data: linhas } = await supabase.from('push_subscriptions').select('endpoint').eq('usuario_id', user.id)
+      if (cancelled) return
+      const endpoints = (linhas ?? []).map(linha => linha.endpoint)
+      setPushDispositivos(endpoints.length)
+      setPushEstado(assinatura && endpoints.includes(assinatura.endpoint) ? 'ativo' : 'inativo')
+    }
+    verificar().catch(() => { if (!cancelled) setPushEstado('sem-suporte') })
+    return () => { cancelled = true }
+  }, [user, plano])
+
+  const ativarPush = async () => {
+    if (!user) return
+    const chave = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined
+    if (!chave) { setAvisoPush({ tipo: 'erro', texto: 'Notificações no navegador ainda não estão configuradas neste ambiente.' }); return }
+    setPushOcupado(true)
+    setAvisoPush(null)
+    try {
+      const permissao = await Notification.requestPermission()
+      if (permissao !== 'granted') {
+        setPushEstado(permissao === 'denied' ? 'negado' : 'inativo')
+        setAvisoPush({ tipo: 'erro', texto: 'Sem a permissão do navegador não dá para notificar. Você pode liberar nas configurações do site.' })
+        return
+      }
+      const registro = await navigator.serviceWorker.register('/sw.js')
+      await navigator.serviceWorker.ready
+      const opcoes = { userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(chave) }
+      let assinatura = (await registro.pushManager.getSubscription()) ?? (await registro.pushManager.subscribe(opcoes))
+      let dados = pushSubscriptionSchema.safeParse(assinatura.toJSON())
+      if (!dados.success) { await assinatura.unsubscribe(); setAvisoPush({ tipo: 'erro', texto: 'Este navegador usa um serviço de push que o DocLimpo não suporta.' }); return }
+      const linha = { usuario_id: user.id, endpoint: dados.data.endpoint, p256dh: dados.data.keys.p256dh, auth: dados.data.keys.auth, user_agent: navigator.userAgent.slice(0, 200) }
+      let { error } = await supabase.from('push_subscriptions').upsert(linha, { onConflict: 'endpoint' })
+      if (error) {
+        // Endpoint já vinculado a outra conta neste navegador: gera uma assinatura nova.
+        await assinatura.unsubscribe()
+        assinatura = await registro.pushManager.subscribe(opcoes)
+        dados = pushSubscriptionSchema.safeParse(assinatura.toJSON())
+        if (!dados.success) { await assinatura.unsubscribe(); setAvisoPush({ tipo: 'erro', texto: 'Este navegador usa um serviço de push que o DocLimpo não suporta.' }); return }
+        ;({ error } = await supabase.from('push_subscriptions').insert({ ...linha, endpoint: dados.data.endpoint, p256dh: dados.data.keys.p256dh, auth: dados.data.keys.auth }))
+      }
+      if (error) { setAvisoPush({ tipo: 'erro', texto: 'Não foi possível salvar este dispositivo agora. Tente novamente.' }); return }
+      setPushEstado('ativo')
+      setPushDispositivos(atual => atual + 1)
+      setAvisoPush({ tipo: 'sucesso', texto: 'Notificações ativadas neste dispositivo. Envie um teste para conferir.' })
+    } catch {
+      setAvisoPush({ tipo: 'erro', texto: 'O navegador recusou a assinatura de notificações. Tente de novo ou use outro navegador.' })
+    } finally {
+      setPushOcupado(false)
+    }
+  }
+
+  const desativarPush = async () => {
+    setPushOcupado(true)
+    setAvisoPush(null)
+    try {
+      const registro = await navigator.serviceWorker.getRegistration('/sw.js')
+      const assinatura = await registro?.pushManager.getSubscription()
+      if (assinatura) {
+        await supabase.from('push_subscriptions').delete().eq('endpoint', assinatura.endpoint)
+        await assinatura.unsubscribe()
+      }
+      setPushEstado('inativo')
+      setPushDispositivos(atual => Math.max(0, atual - 1))
+      setAvisoPush({ tipo: 'sucesso', texto: 'Notificações desativadas neste dispositivo.' })
+    } catch {
+      setAvisoPush({ tipo: 'erro', texto: 'Não foi possível desativar agora. Tente novamente.' })
+    } finally {
+      setPushOcupado(false)
+    }
+  }
+
+  const testarPush = async () => {
+    setPushOcupado(true)
+    setAvisoPush(null)
+    const { error } = await supabase.functions.invoke('send-test-notification', { body: { notification_type: 'PUSH' } })
+    setPushOcupado(false)
+    if (error) { setAvisoPush({ tipo: 'erro', texto: await mensagemDaFuncao(error, 'Não foi possível enviar o teste agora.') }); return }
+    setAvisoPush({ tipo: 'sucesso', texto: 'Notificação de teste enviada. Ela aparece em instantes neste dispositivo.' })
   }
 
   const alternarAlertas = async (ativo: boolean) => {
@@ -382,6 +487,51 @@ export default function Conta() {
             <small>O teste confirma que os avisos chegam à sua caixa de entrada. Limite de um teste por minuto.</small>
           </section>
 
+          <section className="detail-panel" aria-labelledby="conta-push">
+            <div className="detail-panel__title">
+              <MonitorSmartphone size={18} strokeWidth={1.75} />
+              <div>
+                <span className="bz-micro">Alertas</span>
+                <h2 id="conta-push">Notificações no navegador</h2>
+              </div>
+            </div>
+            {!ehPago(plano) ? (
+              <>
+                <p>Receba cada aviso também como notificação neste navegador ou celular, além do e-mail. Disponível nos planos pagos.</p>
+                <div className="conta-actions">
+                  <Button variant="primary" size="sm" onClick={() => setMostrarPlanos(true)}>Ver planos</Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p>
+                  {pushEstado === 'ativo' && `Ativas neste dispositivo. ${pushDispositivos} dispositivo${pushDispositivos === 1 ? '' : 's'} ativado${pushDispositivos === 1 ? '' : 's'} na conta.`}
+                  {pushEstado === 'inativo' && `Ative para receber os avisos de 90, 30, 7 e 1 dia também aqui. ${pushDispositivos > 0 ? `${pushDispositivos} outro${pushDispositivos === 1 ? '' : 's'} dispositivo${pushDispositivos === 1 ? '' : 's'} já ativado${pushDispositivos === 1 ? '' : 's'}.` : ''}`}
+                  {pushEstado === 'negado' && 'O navegador está bloqueando notificações deste site. Libere nas configurações do site (ícone de cadeado na barra de endereço) e recarregue a página.'}
+                  {pushEstado === 'ios-sem-pwa' && 'No iPhone e iPad, as notificações só funcionam com o DocLimpo instalado: toque em Compartilhar, depois em "Adicionar à Tela de Início", e ative por lá.'}
+                  {pushEstado === 'sem-suporte' && 'Este navegador não oferece notificações push. Tente Chrome, Edge, Firefox ou Safari atualizados.'}
+                  {pushEstado === 'verificando' && 'Verificando este navegador…'}
+                </p>
+                <div className="conta-actions">
+                  {pushEstado === 'inativo' && (
+                    <Button variant="primary" size="sm" disabled={pushOcupado} onClick={ativarPush} icon={<BellPlus size={15} strokeWidth={1.75} />}>
+                      {pushOcupado ? 'Ativando…' : 'Ativar neste dispositivo'}
+                    </Button>
+                  )}
+                  {pushEstado === 'ativo' && (
+                    <>
+                      <Button variant="secondary" size="sm" disabled={pushOcupado} onClick={testarPush} icon={<BellRing size={15} strokeWidth={1.75} />}>
+                        {pushOcupado ? 'Enviando…' : 'Enviar notificação de teste'}
+                      </Button>
+                      <Button variant="ghost" size="sm" disabled={pushOcupado} onClick={desativarPush} icon={<BellOff size={15} strokeWidth={1.75} />}>Desativar neste dispositivo</Button>
+                    </>
+                  )}
+                </div>
+                <Feedback aviso={avisoPush} />
+              </>
+            )}
+          </section>
+
           <section className="detail-panel" aria-labelledby="conta-senha">
             <div className="detail-panel__title">
               <KeyRound size={18} strokeWidth={1.75} />
@@ -434,9 +584,9 @@ export default function Conta() {
             {planoHerdado ? (
               <p>Plano herdado da família{familia?.titularNome ? ` de ${familia.titularNome}` : ''}: documentos ilimitados enquanto você fizer parte dela.</p>
             ) : planoProprioPago ? (
-              <p>Documentos ilimitados, alertas por e-mail e guia de renovação. Cartão, faturas e cancelamento ficam no portal de cobrança.</p>
+              <p>Documentos ilimitados, alertas por e-mail e notificações no navegador, guia de renovação. Cartão, faturas e cancelamento ficam no portal de cobrança.</p>
             ) : (
-              <p>Um documento monitorado, alertas por e-mail e guia de renovação. Sem cartão. Para acompanhar mais documentos, assine um plano.</p>
+              <p>Um documento monitorado, alertas por e-mail e guia de renovação. Sem cartão. Para acompanhar mais documentos e receber notificações no navegador, assine um plano.</p>
             )}
             <Feedback aviso={avisoPlano} />
             <div className="conta-actions">
