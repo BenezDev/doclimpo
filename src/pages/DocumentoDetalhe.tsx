@@ -23,6 +23,7 @@ import {
 } from '../components/ui/Bezel'
 import { EnderecoModal } from '../components/ui/EnderecoModal'
 import { OndeRenovar } from '../components/ui/OndeRenovar'
+import { RenovarDialog } from '../components/ui/RenovarDialog'
 import { useAuth } from '../hooks/useAuth'
 import { useTheme } from '../hooks/useTheme'
 import { diasRestantes, formatarDataLonga, statusPorDias } from '../lib/datas'
@@ -128,7 +129,8 @@ export default function DocumentoDetalhe() {
   const [document, setDocument] = useState<Tables<'documentos'> | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
-  const [renewing, setRenewing] = useState(false)
+  const [renovando, setRenovando] = useState(false)
+  const [anterior, setAnterior] = useState<{ data_vencimento: string } | null>(null)
   const [editing, setEditing] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [newDate, setNewDate] = useState('')
@@ -146,6 +148,11 @@ export default function DocumentoDetalhe() {
       setDocument(data)
       setLoadError(Boolean(error))
       setLoading(false)
+      // Prazo anterior, quando este documento nasceu de uma renovação.
+      if (data?.renovado_de) {
+        const { data: antigo } = await supabase.from('documentos').select('data_vencimento').eq('id', data.renovado_de).maybeSingle()
+        if (!cancelled) setAnterior(antigo)
+      } else if (!cancelled) setAnterior(null)
     }
 
     load()
@@ -164,12 +171,6 @@ export default function DocumentoDetalhe() {
     return () => { cancelled = true }
   }, [user])
 
-  const markRenewed = async () => {
-    if (!id) return
-    setRenewing(true)
-    await supabase.from('documentos').update({ resolvido: true }).eq('id', id)
-    navigate('/dashboard')
-  }
 
   const openEdit = () => {
     if (!document) return
@@ -244,6 +245,16 @@ export default function DocumentoDetalhe() {
           inicial={perfilEndereco}
           onClose={() => setMostrarEndereco(false)}
           onSaved={(endereco) => { setPerfilEndereco(endereco); setMostrarEndereco(false) }}
+        />
+      )}
+
+      {renovando && (
+        <RenovarDialog
+          documento={document}
+          nome={documentName}
+          onClose={() => setRenovando(false)}
+          onRenovado={novoId => { setRenovando(false); navigate(`/documento/${novoId}`) }}
+          onEncerrado={() => navigate('/dashboard')}
         />
       )}
 
@@ -346,9 +357,10 @@ export default function DocumentoDetalhe() {
                 <span>Vencimento</span>
                 <time dateTime={document.data_vencimento}>{formatarDataLonga(document.data_vencimento)}</time>
               </div>
-              <Button variant="primary" size="lg" disabled={renewing} onClick={markRenewed} icon={<CheckCircle2 size={18} strokeWidth={1.75} />}>
-                {renewing ? 'Atualizando…' : 'Marcar como renovado'}
+              <Button variant="primary" size="lg" onClick={() => setRenovando(true)} icon={<CheckCircle2 size={18} strokeWidth={1.75} />}>
+                Marcar como renovado
               </Button>
+              {anterior && <p className="detail-countdown__anterior">Renovado de {formatarDataLonga(anterior.data_vencimento)}.</p>}
               <div className="detail-countdown__agenda">
                 <a className="bz-button bz-button--secondary bz-button--md" href={linkGoogleAgenda(eventoAgenda)} target="_blank" rel="noopener noreferrer">
                   <CalendarPlus size={16} strokeWidth={1.75} aria-hidden="true" /><span>Google Agenda</span>

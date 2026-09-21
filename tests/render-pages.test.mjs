@@ -158,6 +158,16 @@ test('landing apresenta os três planos com os preços combinados e o gratuito c
   for (const text of ['R$ 9,90', 'R$ 19,89', 'R$ 29,89', 'Individual', 'MEI', 'Família', 'Mais escolhido', 'até 4 pessoas', '7 dias']) assert.ok(html.includes(text), text)
   assert.equal((html.match(/class="plano-card[ "]/g) ?? []).length, 3)
 })
+test('diálogo de renovação sugere +1 ano e oferece encerrar sem novo prazo, sem tocar no backend', async () => {
+  const { RenovarDialog } = await server.ssrLoadModule('/src/components/ui/RenovarDialog.tsx')
+  const html = renderToStaticMarkup(createElement(MemoryRouter, { initialEntries: ['/documento/x'] },
+    createElement(RenovarDialog, { documento: { id: 'x', tipo: 'cnh', apelido: null, data_vencimento: '2026-10-12' }, nome: 'CNH', onClose() {}, onRenovado() {}, onEncerrado() {} })))
+  assert.match(html, /Renovou CNH\?/)
+  assert.match(html, /value="2027-10-12"/)
+  assert.match(html, /Renovar com novo prazo/)
+  assert.match(html, /Encerrar sem novo prazo/)
+  assert.match(html, /90, 30, 7 e 1 dia/)
+})
 test('paywall lista os três planos, destaca o Individual e nunca envia preço ao servidor', async () => {
   const { PlanosModal } = await server.ssrLoadModule('/src/components/ui/PlanosModal.tsx')
   const render = (props) => renderToStaticMarkup(createElement(MemoryRouter, { initialEntries: ['/dashboard'] }, createElement(PlanosModal, { onClose() {}, ...props })))

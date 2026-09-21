@@ -27,6 +27,10 @@ export const documentoSchema = z.object({
   data_vencimento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Informe uma data válida.'),
 })
 
+export const renovacaoSchema = z.object({
+  nova_data: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Informe uma data válida.'),
+})
+
 export const enderecoSchema = z.object({
   cep: z.string().trim().max(9).optional(),
   logradouro: z.string().trim().max(120, 'Logradouro muito longo.').optional(),

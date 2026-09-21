@@ -457,6 +457,7 @@ h1, h2, h3, h4 { color: var(--bz-text); font-weight: 600; }
 .documents-table__progress--vigente { --progress-color: #2fd97f; }
 .documents-table__progress--atencao { --progress-color: #f5a623; }
 .documents-table__progress--critico, .documents-table__progress--vencido { --progress-color: #a81e17; }
+.documents-table__progress--resolvido { --progress-color: var(--bz-border); }
 .documents-cards { display: none; }
 
 .documents-empty { display: flex; min-height: 340px; flex-direction: column; align-items: center; justify-content: center; padding: 40px 24px; background: var(--bz-surface); border: 1px solid var(--bz-hairline); border-radius: 16px; text-align: center; }
@@ -516,6 +517,8 @@ h1, h2, h3, h4 { color: var(--bz-text); font-weight: 600; }
 .detail-countdown .bz-button { width: 100%; }
 .detail-countdown__agenda { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
 .detail-countdown__agenda .bz-button { width: 100%; }
+.detail-countdown__anterior { margin: 12px 0 0; color: var(--bz-text-muted); font-size: 12px; }
+.renovar-dialog__texto { margin: 0 0 16px; color: var(--bz-text-muted); font-size: 13px; line-height: 1.6; }
 .detail-countdown--atencao .detail-countdown__value { color: #9c6009; }
 .detail-countdown--critico .detail-countdown__value, .detail-countdown--vencido .detail-countdown__value { color: #a81e17; }
 

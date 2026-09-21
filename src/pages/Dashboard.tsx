@@ -14,6 +14,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { AddDocumentModal } from '../components/ui/AddDocumentModal'
 import { EnderecoModal } from '../components/ui/EnderecoModal'
 import { PlanosModal } from '../components/ui/PlanosModal'
+import { RenovarDialog } from '../components/ui/RenovarDialog'
 import {
   Brand,
   Button,
@@ -38,7 +39,7 @@ interface Documento {
   resolvido: boolean
 }
 
-type Filter = 'todos' | 'atencao' | 'criticos'
+type Filter = 'todos' | 'atencao' | 'criticos' | 'resolvidos'
 
 const LABELS: Record<string, string> = {
   cnh: 'CNH',
@@ -76,6 +77,8 @@ export default function Dashboard() {
   const [modal, setModal] = useState(false)
   const [version, setVersion] = useState(0)
   const [filter, setFilter] = useState<Filter>('todos')
+  const [resolvidos, setResolvidos] = useState<Documento[]>([])
+  const [renovando, setRenovando] = useState<Documento | null>(null)
   const [perfilEndereco, setPerfilEndereco] = useState<PerfilEndereco | null>(null)
   const [mostrarEndereco, setMostrarEndereco] = useState(false)
   const { plano, recarregar: recarregarPlano } = usePlano()
@@ -113,6 +116,22 @@ export default function Dashboard() {
     carregar()
     return () => { cancelled = true }
   }, [user, version])
+
+  // Histórico: só quando a aba é aberta. Fica fora de `docs`, que alimenta o
+  // gate do plano (documentos ativos).
+  useEffect(() => {
+    if (!user || filter !== 'resolvidos') return
+    let cancelled = false
+    supabase
+      .from('documentos')
+      .select('*')
+      .eq('usuario_id', user.id)
+      .eq('resolvido', true)
+      .order('atualizado_em', { ascending: false })
+      .limit(50)
+      .then(({ data }) => { if (!cancelled) setResolvidos(data || []) })
+    return () => { cancelled = true }
+  }, [user, filter, version])
 
   useEffect(() => {
     if (!user) return
@@ -188,11 +207,15 @@ export default function Dashboard() {
     navigate('/login')
   }
 
-  const markRenewed = async (id: string, event: React.MouseEvent) => {
+  const abrirRenovacao = (documento: Documento, event: React.MouseEvent) => {
     event.stopPropagation()
-    await supabase.from('documentos').update({ resolvido: true }).eq('id', id)
-    reloadDocuments()
+    setRenovando(documento)
   }
+
+  const historico = filter === 'resolvidos'
+  const linhas = historico
+    ? resolvidos.map(document => ({ ...document, days: diasRestantes(document.data_vencimento) }))
+    : filteredDocuments
 
   const openDocument = (id: string) => navigate(`/documento/${id}`)
 
@@ -200,6 +223,15 @@ export default function Dashboard() {
     <div className="bz-page dashboard-page">
       {mostrarPlanos && (
         <PlanosModal motivo={podeAdicionarDocumento(plano, docs.length) ? 'escolha' : 'limite'} planoAtual={plano} onClose={() => setMostrarPlanos(false)} />
+      )}
+      {renovando && (
+        <RenovarDialog
+          documento={renovando}
+          nome={renovando.apelido || LABELS[renovando.tipo] || renovando.tipo}
+          onClose={() => setRenovando(null)}
+          onRenovado={() => { setRenovando(null); reloadDocuments() }}
+          onEncerrado={() => { setRenovando(null); reloadDocuments() }}
+        />
       )}
 
       {modal && (
@@ -310,6 +342,7 @@ export default function Dashboard() {
                 ['todos', 'Todos'],
                 ['atencao', 'Atenção'],
                 ['criticos', 'Críticos'],
+                ['resolvidos', 'Resolvidos'],
               ] as const).map(([id, label]) => (
                 <button type="button" key={id} onClick={() => setFilter(id)} aria-pressed={filter === id}>
                   {filter === id && <motion.span className="documents-filter__active" layoutId="document-filter" transition={bezelSpring} />}
@@ -330,14 +363,21 @@ export default function Dashboard() {
               <p>A conexão falhou antes de receber a lista. Tente novamente em instantes.</p>
               <Button variant="secondary" onClick={reloadDocuments}>Tentar novamente</Button>
             </div>
-          ) : docs.length === 0 ? (
+          ) : historico && linhas.length === 0 ? (
+            <div className="documents-empty documents-empty--compact">
+              <span className="documents-empty__icon"><CheckCircle2 size={24} strokeWidth={1.75} /></span>
+              <h3>Nenhum documento resolvido</h3>
+              <p>Quando você marcar um documento como renovado, o prazo anterior fica guardado aqui.</p>
+              <Button variant="secondary" onClick={() => setFilter('todos')}>Ver ativos</Button>
+            </div>
+          ) : !historico && docs.length === 0 ? (
             <div className="documents-empty">
               <span className="documents-empty__icon"><FilePlus2 size={28} strokeWidth={1.75} /></span>
               <h3>Nenhum documento ainda</h3>
               <p>Cadastre o primeiro prazo para o painel começar a trabalhar.</p>
               <Button variant="primary" onClick={abrirAdicionar} icon={<Plus size={17} strokeWidth={1.75} />}>Cadastrar primeiro documento</Button>
             </div>
-          ) : filteredDocuments.length === 0 ? (
+          ) : !historico && filteredDocuments.length === 0 ? (
             <div className="documents-empty documents-empty--compact">
               <span className="documents-empty__icon"><CheckCircle2 size={24} strokeWidth={1.75} /></span>
               <h3>Nada nessa faixa</h3>
@@ -354,8 +394,8 @@ export default function Dashboard() {
                   <span role="columnheader">Prazo</span>
                   <span role="columnheader">Ação</span>
                 </div>
-                {filteredDocuments.map((document, index) => {
-                  const status = statusPorDias(document.days)
+                {linhas.map((document, index) => {
+                  const status = historico ? { id: 'resolvido' as const, label: 'Resolvido' } : statusPorDias(document.days)
                   return (
                     <motion.div
                       className="documents-table__row"
@@ -376,13 +416,15 @@ export default function Dashboard() {
                       <div role="cell"><StatusPill status={status.id} label={status.label} /></div>
                       <time role="cell" dateTime={document.data_vencimento}>{formatarData(document.data_vencimento)}</time>
                       <div className="documents-table__days bz-data" role="cell">
-                        {Math.abs(document.days).toString().padStart(2, '0')}d
-                        <span>{document.days < 0 ? 'atrasado' : 'restantes'}</span>
+                        {historico ? '—' : `${Math.abs(document.days).toString().padStart(2, '0')}d`}
+                        <span>{historico ? 'encerrado' : document.days < 0 ? 'atrasado' : 'restantes'}</span>
                       </div>
                       <div className="documents-table__action" role="cell">
-                        <Button variant="ghost" size="sm" onClick={event => markRenewed(document.id, event)} icon={<CheckCircle2 size={15} strokeWidth={1.75} />}>
-                          Renovado
-                        </Button>
+                        {!historico && (
+                          <Button variant="ghost" size="sm" onClick={event => abrirRenovacao(document, event)} icon={<CheckCircle2 size={15} strokeWidth={1.75} />}>
+                            Renovado
+                          </Button>
+                        )}
                         <ChevronRight size={17} strokeWidth={1.75} aria-hidden="true" />
                       </div>
                       <progress
@@ -397,8 +439,8 @@ export default function Dashboard() {
               </div>
 
               <div className="documents-cards">
-                {filteredDocuments.map((document, index) => {
-                  const status = statusPorDias(document.days)
+                {linhas.map((document, index) => {
+                  const status = historico ? { id: 'resolvido' as const, label: 'Resolvido' } : statusPorDias(document.days)
                   return (
                     <motion.article
                       className="document-card"
@@ -413,8 +455,8 @@ export default function Dashboard() {
                           <span>{LABELS[document.tipo] || document.tipo}</span>
                         </div>
                         <div className="document-card__days bz-data">
-                          {Math.abs(document.days).toString().padStart(2, '0')}d
-                          <span>{document.days < 0 ? 'atrasado' : 'restantes'}</span>
+                          {historico ? '—' : `${Math.abs(document.days).toString().padStart(2, '0')}d`}
+                          <span>{historico ? 'encerrado' : document.days < 0 ? 'atrasado' : 'restantes'}</span>
                         </div>
                       </div>
                       <div className="document-card__meta">
@@ -422,7 +464,7 @@ export default function Dashboard() {
                         <time dateTime={document.data_vencimento}>{formatarData(document.data_vencimento)}</time>
                       </div>
                       <div className="document-card__footer">
-                        <Button variant="ghost" size="sm" onClick={event => markRenewed(document.id, event)} icon={<CheckCircle2 size={15} strokeWidth={1.75} />}>Renovado</Button>
+                        {!historico && <Button variant="ghost" size="sm" onClick={event => abrirRenovacao(document, event)} icon={<CheckCircle2 size={15} strokeWidth={1.75} />}>Renovado</Button>}
                         <span>Ver detalhes <ChevronRight size={15} strokeWidth={1.75} /></span>
                       </div>
                       <progress

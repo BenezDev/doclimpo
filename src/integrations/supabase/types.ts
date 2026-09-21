@@ -62,6 +62,7 @@ export type Database = {
           numero_documento: string | null
           observacoes: string | null
           ocr_data: Json | null
+          renovado_de: string | null
           resolvido: boolean
           status: string
           tipo: string
@@ -79,6 +80,7 @@ export type Database = {
           numero_documento?: string | null
           observacoes?: string | null
           ocr_data?: Json | null
+          renovado_de?: string | null
           resolvido?: boolean
           status?: string
           tipo: string
@@ -96,12 +98,21 @@ export type Database = {
           numero_documento?: string | null
           observacoes?: string | null
           ocr_data?: Json | null
+          renovado_de?: string | null
           resolvido?: boolean
           status?: string
           tipo?: string
           usuario_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "documentos_renovado_de_fkey"
+            columns: ["renovado_de"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       familias: {
         Row: {
@@ -536,6 +547,10 @@ export type Database = {
       }
       plano_efetivo: {
         Args: { uid: string }
+        Returns: string
+      }
+      renovar_documento: {
+        Args: { p_id: string; p_nova_data: string }
         Returns: string
       }
     }
