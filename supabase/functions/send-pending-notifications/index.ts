@@ -2,8 +2,9 @@ import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supa
 import { corsHeaders } from "../_shared/cors.ts";
 import { compararSegredo } from "../_shared/seguranca.ts";
 import { escapeHtml } from "../_shared/html.ts";
-import { CANAIS, type Canal, formatarData, rotuloDocumento, textoAlerta } from "../_shared/notificacoes.ts";
+import { CANAIS, type Canal, formatarData, higienizarTexto, rotuloDocumento, textoAlerta } from "../_shared/notificacoes.ts";
 import { carregarServidorPush, enviarPush as enviarPushWeb } from "../_shared/push.ts";
+import { configWhatsapp, enviarTemplate } from "../_shared/whatsapp.ts";
 
 // check-expiring-documents apenas enfileira linhas em notifications, uma por
 // canal. Esta função drena a fila e envia cada linha pelo seu tipo.
@@ -160,9 +161,29 @@ async function enviarPush(ctx: Contexto, n: Notificacao, _perfil: Perfil, docume
   return { estado: "SKIPPED", detalhe: detalhes.join("; ").slice(0, 300) || "sem_dispositivo" };
 }
 
-// WhatsApp: entra na fase seguinte. Até lá a fila não acumula.
-async function enviarWhatsapp(): Promise<Resultado> {
-  return await Promise.resolve({ estado: "SKIPPED", detalhe: "canal_nao_configurado" });
+// WhatsApp: template aprovado na Meta, só para número verificado por código.
+// Erro que indica número inválido/opt-out desliga o canal para o usuário.
+async function enviarWhatsapp(ctx: Contexto, n: Notificacao, perfil: Perfil, documento: Documento): Promise<Resultado> {
+  const config = configWhatsapp();
+  if (!config) return { estado: "SKIPPED", detalhe: "canal_nao_configurado" };
+  if (!perfil.notification_whatsapp || !perfil.whatsapp_verificado_em || !perfil.whatsapp_number) {
+    return { estado: "SKIPPED", detalhe: "whatsapp_nao_verificado" };
+  }
+  const rotulo = rotuloDocumento(documento);
+  const dias = n.days_before_expiry;
+  const nome = higienizarTexto((perfil.nome ?? "").split(" ")[0] || "olá", 30);
+  const r = await enviarTemplate(config, {
+    para: perfil.whatsapp_number,
+    template: config.templateAlerta,
+    parametros: [nome, rotulo, textoAlerta(dias, rotulo).prazo, formatarData(documento.data_vencimento)],
+  });
+  if (r.ok) return { estado: "SENT", detalhe: r.id };
+  if (r.classe === "desativar") {
+    await ctx.supabase.from("profiles").update({ notification_whatsapp: false, whatsapp_verificado_em: null }).eq("user_id", n.usuario_id);
+    return { estado: "FAILED", detalhe: `desativado: ${r.detalhe}` };
+  }
+  if (r.classe === "retentar") return { estado: "PENDING", detalhe: r.detalhe };
+  return { estado: "FAILED", detalhe: r.detalhe };
 }
 
 const ENVIADORES: Record<Canal, (ctx: Contexto, n: Notificacao, p: Perfil, d: Documento) => Promise<Resultado>> = {

@@ -151,6 +151,11 @@ test('conta expõe alertas, senha, endereço, plano, exportação e exclusão se
   assert.match(html, /href="\/termos"/)
   assert.match(html, /href="\/privacidade"/)
   assert.doesNotMatch(html, /Quem faz parte/)
+  // O painel de WhatsApp só existe quando o interruptor de lançamento estiver ligado.
+  const { WHATSAPP_DISPONIVEL } = await server.ssrLoadModule('/src/lib/planos.ts')
+  assert.equal(html.includes('id="conta-whatsapp"'), WHATSAPP_DISPONIVEL)
+  const privacidade = await renderPage('Privacy', '/privacidade')
+  assert.equal(privacidade.includes('Meta Platforms'), WHATSAPP_DISPONIVEL)
 })
 test('landing apresenta os três planos com os preços combinados e o gratuito como porta de entrada', async () => {
   const html = await renderPage('Landing_1', '/')

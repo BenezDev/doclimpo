@@ -21,6 +21,14 @@ export const conviteSchema = z.object({
 
 export const planoSchema = z.enum(['individual', 'familia', 'mei'])
 
+export const telefoneSchema = z.object({
+  numero: z.string().trim().min(8, 'Informe o celular com DDD.').max(25, 'Número muito longo.'),
+})
+
+export const codigoSchema = z.object({
+  codigo: z.string().trim().regex(/^\d{6}$/, 'O código tem 6 dígitos.'),
+})
+
 // Dados auxiliares de IPVA/CRLV para sugerir o próximo prazo na renovação.
 export const extraSchema = z.object({
   uf: z.string().length(2),

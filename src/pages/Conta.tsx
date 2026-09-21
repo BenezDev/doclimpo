@@ -10,6 +10,7 @@ import {
   KeyRound,
   MailCheck,
   MapPin,
+  MessageCircle,
   MonitorSmartphone,
   Send,
   Trash2,
@@ -28,9 +29,11 @@ import { useTheme } from '../hooks/useTheme'
 import { usePlano } from '../hooks/usePlano'
 import { supabase } from '../integrations/supabase/client'
 import { validateNewPassword } from '../lib/access-flow'
+import { codigoSchema, telefoneSchema } from '../lib/validacao'
 import { resumoEndereco, temEndereco, type PerfilEndereco } from '../lib/endereco'
 import { bezelSpring } from '../lib/motion'
-import { LIMITE_PESSOAS_FAMILIA, ehPago, formatarPreco, normalizarPlano, planoPorId, rotuloPlano, urlStripeSegura } from '../lib/planos'
+import { LIMITE_PESSOAS_FAMILIA, WHATSAPP_DISPONIVEL, ehPago, formatarPreco, normalizarPlano, planoPorId, rotuloPlano, urlStripeSegura } from '../lib/planos'
+import { mascararTelefone } from '../lib/telefone'
 import { ehIosSemPwa, pushSubscriptionSchema, suportaPush, urlBase64ToUint8Array } from '../lib/push'
 import { conviteSchema } from '../lib/validacao'
 
@@ -38,10 +41,13 @@ interface PerfilConta extends PerfilEndereco {
   nome: string | null
   email: string | null
   notification_email: boolean
+  notification_whatsapp: boolean
+  whatsapp_number: string | null
+  whatsapp_verificado_em: string | null
   plan_type: string
 }
 
-const CAMPOS_PERFIL = 'nome, email, notification_email, plan_type, cep, logradouro, numero, complemento, bairro, cidade, uf, ibge, latitude, longitude'
+const CAMPOS_PERFIL = 'nome, email, notification_email, notification_whatsapp, whatsapp_number, whatsapp_verificado_em, plan_type, cep, logradouro, numero, complemento, bairro, cidade, uf, ibge, latitude, longitude'
 
 const ENDERECO_VAZIO: PerfilEndereco = {
   cep: null, logradouro: null, numero: null, complemento: null, bairro: null,
@@ -96,6 +102,12 @@ export default function Conta() {
   const [avisoAlertas, setAvisoAlertas] = useState<Aviso>(null)
   const [enviandoTeste, setEnviandoTeste] = useState(false)
   const [salvandoPreferencia, setSalvandoPreferencia] = useState(false)
+
+  const [zapNumero, setZapNumero] = useState('')
+  const [zapCodigo, setZapCodigo] = useState('')
+  const [zapEtapa, setZapEtapa] = useState<'numero' | 'codigo'>('numero')
+  const [zapOcupado, setZapOcupado] = useState(false)
+  const [avisoZap, setAvisoZap] = useState<Aviso>(null)
 
   const [pushEstado, setPushEstado] = useState<PushEstado>('verificando')
   const [pushDispositivos, setPushDispositivos] = useState(0)
@@ -310,6 +322,58 @@ export default function Conta() {
     setPushOcupado(false)
     if (error) { setAvisoPush({ tipo: 'erro', texto: await mensagemDaFuncao(error, 'Não foi possível enviar o teste agora.') }); return }
     setAvisoPush({ tipo: 'sucesso', texto: 'Notificação de teste enviada. Ela aparece em instantes neste dispositivo.' })
+  }
+
+  // WhatsApp: número entra só pelo servidor (verificação por código).
+  const zapVerificado = Boolean(perfil?.whatsapp_verificado_em && perfil?.whatsapp_number)
+
+  const enviarCodigoZap = async (event: React.FormEvent) => {
+    event.preventDefault()
+    const validado = telefoneSchema.safeParse({ numero: zapNumero })
+    if (!validado.success) { setAvisoZap({ tipo: 'erro', texto: validado.error.issues[0]?.message ?? 'Informe o celular.' }); return }
+    setZapOcupado(true)
+    setAvisoZap(null)
+    const { error } = await supabase.functions.invoke('whatsapp-verificar', { body: { acao: 'enviar', numero: validado.data.numero } })
+    setZapOcupado(false)
+    if (error) { setAvisoZap({ tipo: 'erro', texto: await mensagemDaFuncao(error, 'Não foi possível enviar o código agora.') }); return }
+    setZapEtapa('codigo')
+    setAvisoZap({ tipo: 'sucesso', texto: 'Código enviado pelo WhatsApp. Ele vale por 10 minutos.' })
+  }
+
+  const confirmarCodigoZap = async (event: React.FormEvent) => {
+    event.preventDefault()
+    const validado = codigoSchema.safeParse({ codigo: zapCodigo })
+    if (!validado.success) { setAvisoZap({ tipo: 'erro', texto: validado.error.issues[0]?.message ?? 'Informe o código.' }); return }
+    setZapOcupado(true)
+    setAvisoZap(null)
+    const { data, error } = await supabase.functions.invoke<{ numero?: string }>('whatsapp-verificar', { body: { acao: 'confirmar', codigo: validado.data.codigo } })
+    setZapOcupado(false)
+    if (error) { setAvisoZap({ tipo: 'erro', texto: await mensagemDaFuncao(error, 'Não foi possível confirmar agora.') }); return }
+    const agora = new Date().toISOString()
+    setPerfil(atual => atual ? { ...atual, whatsapp_number: data?.numero ?? atual.whatsapp_number, whatsapp_verificado_em: agora, notification_whatsapp: true } : atual)
+    setZapEtapa('numero')
+    setZapCodigo('')
+    setAvisoZap({ tipo: 'sucesso', texto: 'Número confirmado. Os avisos de vencimento chegam também pelo WhatsApp.' })
+  }
+
+  const alternarZap = async (ativo: boolean) => {
+    if (!user) return
+    setZapOcupado(true)
+    setAvisoZap(null)
+    const { error } = await supabase.from('profiles').update({ notification_whatsapp: ativo }).eq('user_id', user.id)
+    setZapOcupado(false)
+    if (error) { setAvisoZap({ tipo: 'erro', texto: 'Não foi possível salvar a preferência agora.' }); return }
+    setPerfil(atual => atual ? { ...atual, notification_whatsapp: ativo } : atual)
+  }
+
+  const removerZap = async () => {
+    setZapOcupado(true)
+    setAvisoZap(null)
+    const { error } = await supabase.functions.invoke('whatsapp-verificar', { body: { acao: 'remover' } })
+    setZapOcupado(false)
+    if (error) { setAvisoZap({ tipo: 'erro', texto: await mensagemDaFuncao(error, 'Não foi possível remover agora.') }); return }
+    setPerfil(atual => atual ? { ...atual, whatsapp_number: null, whatsapp_verificado_em: null, notification_whatsapp: false } : atual)
+    setAvisoZap({ tipo: 'sucesso', texto: 'Número removido. Nenhum aviso será enviado pelo WhatsApp.' })
   }
 
   const alternarAlertas = async (ativo: boolean) => {
@@ -531,6 +595,72 @@ export default function Conta() {
               </>
             )}
           </section>
+
+          {WHATSAPP_DISPONIVEL && (
+            <section className="detail-panel" aria-labelledby="conta-whatsapp">
+              <div className="detail-panel__title">
+                <MessageCircle size={18} strokeWidth={1.75} />
+                <div>
+                  <span className="bz-micro">Alertas</span>
+                  <h2 id="conta-whatsapp">WhatsApp</h2>
+                </div>
+              </div>
+              {!ehPago(plano) ? (
+                <>
+                  <p>Receba cada aviso também pelo WhatsApp, no seu celular. Disponível nos planos pagos.</p>
+                  <div className="conta-actions">
+                    <Button variant="primary" size="sm" onClick={() => setMostrarPlanos(true)}>Ver planos</Button>
+                  </div>
+                </>
+              ) : zapVerificado ? (
+                <>
+                  <label className="conta-switch">
+                    <input
+                      type="checkbox"
+                      role="switch"
+                      checked={perfil?.notification_whatsapp ?? false}
+                      disabled={zapOcupado}
+                      onChange={event => alternarZap(event.target.checked)}
+                    />
+                    <span className="conta-switch__track" aria-hidden="true"><span className="conta-switch__thumb" /></span>
+                    <span className="conta-switch__label">
+                      <strong>Receber alertas em {mascararTelefone(perfil?.whatsapp_number ?? '')}</strong>
+                      <small>Número verificado. Janelas de 90, 30, 7 e 1 dia antes de cada vencimento.</small>
+                    </span>
+                  </label>
+                  <div className="conta-actions">
+                    <Button variant="ghost" size="sm" disabled={zapOcupado} onClick={removerZap} icon={<Trash2 size={15} strokeWidth={1.75} />}>Remover número</Button>
+                  </div>
+                  <Feedback aviso={avisoZap} />
+                </>
+              ) : zapEtapa === 'numero' ? (
+                <form onSubmit={enviarCodigoZap}>
+                  <p>Informe o celular com DDD. Enviamos um código de 6 dígitos pelo WhatsApp para confirmar que o número é seu.</p>
+                  <div className="bz-field">
+                    <label htmlFor="conta-zap-numero">Celular</label>
+                    <input className="bz-input" id="conta-zap-numero" type="tel" inputMode="tel" autoComplete="tel" maxLength={25} placeholder="(11) 99999-9999" value={zapNumero} onChange={event => setZapNumero(event.target.value)} />
+                  </div>
+                  <div className="conta-actions">
+                    <Button variant="primary" size="sm" type="submit" disabled={zapOcupado || carregando} icon={<Send size={15} strokeWidth={1.75} />}>{zapOcupado ? 'Enviando…' : 'Enviar código'}</Button>
+                  </div>
+                  <Feedback aviso={avisoZap} />
+                  <small>Ao confirmar, você autoriza o DocLimpo a enviar alertas de vencimento por WhatsApp. Pode desligar aqui a qualquer momento.</small>
+                </form>
+              ) : (
+                <form onSubmit={confirmarCodigoZap}>
+                  <div className="bz-field">
+                    <label htmlFor="conta-zap-codigo">Código recebido</label>
+                    <input className="bz-input" id="conta-zap-codigo" type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={zapCodigo} onChange={event => setZapCodigo(event.target.value)} />
+                  </div>
+                  <div className="conta-actions">
+                    <Button variant="primary" size="sm" type="submit" disabled={zapOcupado} icon={<CheckCircle2 size={15} strokeWidth={1.75} />}>{zapOcupado ? 'Confirmando…' : 'Confirmar'}</Button>
+                    <Button variant="ghost" size="sm" type="button" disabled={zapOcupado} onClick={() => { setZapEtapa('numero'); setAvisoZap(null) }}>Trocar número</Button>
+                  </div>
+                  <Feedback aviso={avisoZap} />
+                </form>
+              )}
+            </section>
+          )}
 
           <section className="detail-panel" aria-labelledby="conta-senha">
             <div className="detail-panel__title">
