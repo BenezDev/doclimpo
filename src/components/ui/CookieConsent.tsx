@@ -32,8 +32,9 @@ export function CookieConsent() {
       <div className="bz-cookie__text">
         <strong>Cookies e armazenamento</strong>
         <p>
-          Usamos apenas armazenamento local essencial — para manter você conectado e lembrar a
-          preferência de tema. Não há cookies de publicidade ou rastreamento. Saiba mais na{' '}
+          Usamos armazenamento local essencial — para manter você conectado e lembrar a
+          preferência de tema — e métricas de acesso agregadas, sem cookie e sem identificar você
+          (Vercel Web Analytics). Não há cookies de publicidade. Saiba mais na{' '}
           <Link to="/privacidade">política de privacidade</Link>.
         </p>
       </div>

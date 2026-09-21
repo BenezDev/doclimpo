@@ -284,6 +284,7 @@ export default function Landing() {
         <div className="bz-container landing-footer__inner">
           <Link className="brand-link" to="/" aria-label="DocLimpo — início"><Brand /></Link>
           <nav className="landing-footer__links" aria-label="Rodapé">
+            <Link to="/documentos">Documentos</Link>
             <Link to="/privacidade">Privacidade</Link>
             <Link to="/termos">Termos</Link>
             {support.email && <a href={`mailto:${support.email}`}>{support.email}</a>}

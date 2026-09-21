@@ -1,9 +1,11 @@
 // Consentimento de cookies/armazenamento local.
 //
-// O DocLimpo só usa armazenamento local essencial: a sessão de autenticação
+// O DocLimpo usa armazenamento local essencial: a sessão de autenticação
 // (integrations/supabase/client) e a preferência de tema (hooks/useTheme).
-// Não há publicidade nem rastreamento — por isso o aviso é informativo e
-// registra o aceite, em vez de oferecer categorias opcionais que não existem.
+// As métricas de acesso (Vercel Web Analytics) são agregadas, sem cookie e
+// sem identificador persistente. Não há publicidade — por isso o aviso é
+// informativo e registra o aceite, em vez de oferecer categorias opcionais
+// que não existem.
 //
 // A lógica de decisão fica separada do acesso ao localStorage para ser
 // testável sem navegador, no mesmo estilo de lib/access-flow.ts.
@@ -12,7 +14,7 @@ export const CONSENT_STORAGE_KEY = 'doclimpo-consent'
 
 // Suba a versão quando o texto do aviso mudar de forma relevante: aceites
 // antigos deixam de valer e o aviso reaparece.
-export const CONSENT_VERSION = 1
+export const CONSENT_VERSION = 2
 
 export interface ConsentRecord {
   v: number

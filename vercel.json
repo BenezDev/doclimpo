@@ -15,7 +15,9 @@
     },
     {
       "src": "/sw.js",
-      "headers": { "Cache-Control": "no-cache" },
+      "headers": {
+        "Cache-Control": "no-cache"
+      },
       "continue": true
     },
     {
@@ -61,6 +63,54 @@
     {
       "src": "/documento/[^/]+/?",
       "dest": "/documento/index.html"
+    },
+    {
+      "src": "/documentos/?",
+      "dest": "/documentos/index.html"
+    },
+    {
+      "src": "/documentos/cnh/?",
+      "dest": "/documentos/cnh/index.html"
+    },
+    {
+      "src": "/documentos/crlv/?",
+      "dest": "/documentos/crlv/index.html"
+    },
+    {
+      "src": "/documentos/ipva/?",
+      "dest": "/documentos/ipva/index.html"
+    },
+    {
+      "src": "/documentos/passaporte/?",
+      "dest": "/documentos/passaporte/index.html"
+    },
+    {
+      "src": "/documentos/rg/?",
+      "dest": "/documentos/rg/index.html"
+    },
+    {
+      "src": "/documentos/seguro/?",
+      "dest": "/documentos/seguro/index.html"
+    },
+    {
+      "src": "/documentos/plano_saude/?",
+      "dest": "/documentos/plano_saude/index.html"
+    },
+    {
+      "src": "/documentos/carteira_trabalho/?",
+      "dest": "/documentos/carteira_trabalho/index.html"
+    },
+    {
+      "src": "/documentos/garantia/?",
+      "dest": "/documentos/garantia/index.html"
+    },
+    {
+      "src": "/documentos/contrato/?",
+      "dest": "/documentos/contrato/index.html"
+    },
+    {
+      "src": "/documentos/exame/?",
+      "dest": "/documentos/exame/index.html"
     },
     {
       "src": "/404(?:\\.html)?/?",

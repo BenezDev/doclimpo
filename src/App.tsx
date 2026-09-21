@@ -2,6 +2,7 @@ import { lazy, Suspense, type ReactNode } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
 import { PageMetadata } from './components/PageMetadata'
+import { Analytics } from '@vercel/analytics/react'
 import { CookieConsent } from './components/ui/CookieConsent'
 import { withDocumentIntent } from './lib/public-content'
 import './styles/public-pages.css'
@@ -17,6 +18,8 @@ const Privacy = lazy(() => import('./pages/Privacy'))
 const Termos = lazy(() => import('./pages/Termos'))
 const RedefinirSenha = lazy(() => import('./pages/RedefinirSenha'))
 const Conta = lazy(() => import('./pages/Conta'))
+const DocumentosHub = lazy(() => import('./pages/DocumentosHub'))
+const DocumentoPublico = lazy(() => import('./pages/DocumentoPublico'))
 
 function AppLoading() {
   return (
@@ -39,6 +42,8 @@ function App() {
     <BrowserRouter>
       <PageMetadata />
       <CookieConsent />
+      {/* Vercel Web Analytics: métricas agregadas de página, sem cookie nem identificador persistente (same-origin /_vercel/insights). */}
+      <Analytics />
       <Suspense fallback={<AppLoading />}>
         <Routes>
           <Route path="/" element={<Landing />} />
@@ -47,6 +52,8 @@ function App() {
           <Route path="/obrigado" element={<ThankYou />} />
           <Route path="/privacidade" element={<Privacy />} />
           <Route path="/termos" element={<Termos />} />
+          <Route path="/documentos" element={<DocumentosHub />} />
+          <Route path="/documentos/:tipo" element={<DocumentoPublico />} />
           <Route path="/redefinir-senha" element={<RedefinirSenha />} />
           <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />

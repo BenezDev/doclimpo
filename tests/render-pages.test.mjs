@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { createServer } from 'vite'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
 
 const previewCachePath = new URL('../node_modules/.vite/deps/_metadata.json', import.meta.url)
 async function readPreviewCache() {
@@ -113,7 +113,8 @@ test('política informa escopo real, bases legais, controles da conta e fontes o
   assert.doesNotMatch(html, /Minuta em revisão/)
   assert.match(html, /Responsável pelo tratamento:<\/strong> \S/)
   assert.match(html, /mailto:/)
-  for (const text of ['Supabase', 'Resend', 'Google Fonts', 'ViaCEP', 'Serviços de push do navegador', 'Retenção e exclusão', 'Responsável e contato', 'Bases legais', 'Encarregado de dados']) assert.ok(html.includes(text), text)
+  for (const text of ['Supabase', 'Resend', 'Google Fonts', 'ViaCEP', 'Vercel', 'Serviços de push do navegador', 'Retenção e exclusão', 'Responsável e contato', 'Bases legais', 'Encarregado de dados']) assert.ok(html.includes(text), text)
+  assert.doesNotMatch(html, /não inclui ferramentas de publicidade ou analytics/)
   assert.match(html, /endereço residencial/)
   assert.match(html, /href="\/conta"/)
   assert.match(html, /https:\/\/www.gov.br\/anpd\//)
@@ -177,6 +178,24 @@ test('diálogo de renovação sugere +1 ano e oferece encerrar sem novo prazo, s
     createElement(RenovarDialog, { documento: { id: 'y', tipo: 'ipva', apelido: null, data_vencimento: '2026-01-23', extra: { uf: 'SP', placa_final: '5' } }, nome: 'IPVA', onClose() {}, onRenovado() {}, onEncerrado() {} })))
   assert.match(ipva, /Sugerir pelo calendário 2027/)
   assert.match(ipva, /value="SP"/)
+})
+test('páginas públicas por documento: h1 único, CTA com o tipo, portal oficial e hub com todos os links', async () => {
+  const { default: DocumentoPublico } = await server.ssrLoadModule('/src/pages/DocumentoPublico.tsx')
+  const renderTipo = (location) => renderToStaticMarkup(createElement(MemoryRouter, { initialEntries: [location] },
+    createElement(AuthContext.Provider, { value: { user: null, loading: false, session: null, signOut: async () => {} } },
+      createElement(Routes, null, createElement(Route, { path: '/documentos/:tipo', element: createElement(DocumentoPublico) })))))
+  const cnh = renderTipo('/documentos/cnh')
+  assert.equal((cnh.match(/<h1[\s>]/g) ?? []).length, 1)
+  assert.match(cnh, /href="\/cadastro\?documento=cnh"/)
+  assert.match(cnh, /https:\/\/www\.gov\.br\/pt-br\/servicos\/renovar-a-carteira-nacional-de-habilitacao/)
+  assert.match(cnh, /Lei 14\.071\/2020/)
+  assert.doesNotMatch(cnh, /<script[^>]*\ssrc=|<img[^>]*\ssrc="http/)
+  const desconhecido = renderTipo('/documentos/xyz')
+  assert.match(desconhecido, /Erro 404/)
+  const hub = await renderPage('DocumentosHub', '/documentos')
+  const { SLUGS_PUBLICOS } = await server.ssrLoadModule('/src/lib/documentos-publicos.ts')
+  assert.equal(SLUGS_PUBLICOS.length, 11)
+  for (const slug of SLUGS_PUBLICOS) assert.ok(hub.includes(`href="/documentos/${slug}"`), slug)
 })
 test('paywall lista os três planos, destaca o Individual e nunca envia preço ao servidor', async () => {
   const { PlanosModal } = await server.ssrLoadModule('/src/components/ui/PlanosModal.tsx')

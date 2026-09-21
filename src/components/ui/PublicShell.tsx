@@ -24,6 +24,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
           <Link className="brand-link" to="/"><Brand /></Link>
           <span className="landing-footer__meta">Menos urgência. Mais antecedência.</span>
           <nav className="landing-footer__links" aria-label="Rodapé">
+            <Link to="/documentos">Documentos</Link>
             <Link to="/#perguntas">Perguntas frequentes</Link>
             <Link to="/privacidade">Privacidade</Link>
             <Link to="/termos">Termos</Link>

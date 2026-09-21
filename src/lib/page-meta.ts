@@ -1,3 +1,5 @@
+import { DOCUMENTOS_PUBLICOS } from './documentos-publicos.ts'
+
 export const siteOrigin = 'https://www.doclimpo.com'
 
 export interface PageMeta { title: string; description: string; index: boolean; path: string }
@@ -14,6 +16,8 @@ export const publicPages: Record<string, PageMeta> = {
   '/onboarding': { title: 'Cadastrar primeiro documento | DocLimpo', description: 'Escolha o tipo de documento e informe a data de vencimento para começar a organizar seus prazos no DocLimpo.', index: false, path: '/onboarding' },
   '/dashboard': { title: 'Meu painel de documentos | DocLimpo', description: 'Consulte seus documentos e próximos vencimentos no painel privado do DocLimpo.', index: false, path: '/dashboard' },
   '/404': { title: 'Página não encontrada | DocLimpo', description: 'Este endereço não foi encontrado. Volte ao início do DocLimpo ou acesse seu painel de documentos.', index: false, path: '/404' },
+  '/documentos': { title: 'Documentos e prazos: guia de validade e renovação | DocLimpo', description: 'CNH, CRLV, IPVA, passaporte, RG, seguro, plano de saúde e mais: quanto tempo vale cada documento, onde renovar e como receber aviso antes de vencer.', index: true, path: '/documentos' },
+  ...Object.fromEntries(DOCUMENTOS_PUBLICOS.map(item => [`/documentos/${item.slug}`, { title: item.titulo, description: item.descricao, index: true, path: `/documentos/${item.slug}` }])),
 }
 
 export function getPageMeta(pathname: string): PageMeta {

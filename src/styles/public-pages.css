@@ -70,3 +70,15 @@ a.bz-button { text-decoration: none; }
   .outcome-actions .bz-button { white-space: normal; text-align: center; }
   .privacy-index { grid-template-columns: 1fr; }
 }
+.documento-publico__heading { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 20px; align-items: start; }
+.documento-publico__heading .bz-micro a { color: inherit; }
+.documento-publico__outros { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0; padding: 0; list-style: none; }
+.documento-publico__outros a { display: inline-flex; align-items: center; gap: 4px; font-size: 14px; }
+.privacy-body dd a { display: inline-flex; align-items: center; gap: 4px; }
+.documentos-hub { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 0; padding: 0; list-style: none; }
+.documentos-hub__card { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 18px; background: var(--bz-surface); border: 1px solid var(--bz-hairline); border-radius: 14px; color: var(--bz-text); text-decoration: none; }
+.documentos-hub__card:hover { border-color: var(--bz-border-strong); }
+.documentos-hub__card strong { display: block; font-size: 15px; }
+.documentos-hub__card small { display: block; margin-top: 3px; color: var(--bz-text-muted); font-size: 12.5px; line-height: 1.5; }
+.documentos-hub__card > svg { color: var(--bz-text-muted); }
+@media (max-width: 760px) { .documentos-hub { grid-template-columns: 1fr; } .documento-publico__heading { grid-template-columns: 1fr; } }

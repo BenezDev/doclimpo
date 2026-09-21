@@ -19,6 +19,12 @@ export function renderPageHead(html: string, path: string) {
   return /<link rel="canonical"[^>]*>/.test(result) ? result.replace(/<link rel="canonical"[^>]*>/, canonical) : result.replace('</head>', `  ${canonical}\n  </head>`)
 }
 
+// Só páginas indexáveis; as privadas e as de fluxo ficam de fora.
+export function renderSitemap() {
+  const urls = Object.values(publicPages).filter(page => page.index).map(page => `  <url><loc>${siteOrigin}${page.path}</loc></url>`)
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join('\n')}\n</urlset>\n`
+}
+
 export function pageHtml(): Plugin {
   return {
     name: 'docalert-page-html',
@@ -36,6 +42,8 @@ export function pageHtml(): Plugin {
           this.emitFile({ type: 'asset', fileName: path === '/404' ? '404.html' : `${path.slice(1)}/index.html`, source: renderPageHead(html, path) })
         }
         this.emitFile({ type: 'asset', fileName: 'documento/index.html', source: renderPageHead(html, '/documento/private') })
+        this.emitFile({ type: 'asset', fileName: 'sitemap.xml', source: renderSitemap() })
+        this.emitFile({ type: 'asset', fileName: 'robots.txt', source: `User-agent: *\nAllow: /\nDisallow: /dashboard\nDisallow: /conta\nDisallow: /documento/\nDisallow: /onboarding\nSitemap: ${siteOrigin}/sitemap.xml\n` })
       },
     },
   }
