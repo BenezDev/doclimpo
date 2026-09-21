@@ -2,7 +2,7 @@ import { motion, useReducedMotion } from 'framer-motion'
 import { CheckCircle2, CircleAlert, X } from 'lucide-react'
 import { useState } from 'react'
 import { supabase } from '../../integrations/supabase/client'
-import { formatarData, hojeISO, somarAnos } from '../../lib/datas'
+import { formatarData, hojeISO, somarAnos, somarDias } from '../../lib/datas'
 import { interpretarErro, textoDaFalha } from '../../lib/erros'
 import { bezelSpring } from '../../lib/motion'
 import { renovacaoSchema } from '../../lib/validacao'
@@ -30,7 +30,10 @@ interface Props {
 // "Encerrar" mantém o comportamento antigo: só resolve, sem nova data.
 export function RenovarDialog({ documento, nome, onClose, onRenovado, onEncerrado }: Props) {
   const reduceMotion = useReducedMotion()
-  const [novaData, setNovaData] = useState(somarAnos(documento.data_vencimento, 1))
+  // Multa não "renova": o próximo prazo é a próxima notificação (defesa →
+  // penalidade → recurso), em geral 30 dias à frente; o resto anda de ano em ano.
+  const ehMulta = documento.tipo === 'multa'
+  const [novaData, setNovaData] = useState(ehMulta ? somarDias(hojeISO(), 30) : somarAnos(documento.data_vencimento, 1))
   const extra = documento.extra && typeof documento.extra === 'object' ? documento.extra as { uf?: string } : null
   const anoSeguinte = Number(documento.data_vencimento.slice(0, 4)) + 1
   const [salvando, setSalvando] = useState(false)
@@ -74,7 +77,7 @@ export function RenovarDialog({ documento, nome, onClose, onRenovado, onEncerrad
       >
         <header className="bz-modal__header">
           <div>
-            <h2 id="renovar-titulo">Renovou {nome}?</h2>
+            <h2 id="renovar-titulo">{ehMulta ? 'Resolveu a multa?' : `Renovou ${nome}?`}</h2>
             <p>PRÓXIMO PRAZO</p>
           </div>
           <button className="bz-icon-button" type="button" onClick={onClose} aria-label="Fechar" disabled={salvando}>
@@ -83,10 +86,12 @@ export function RenovarDialog({ documento, nome, onClose, onRenovado, onEncerrad
         </header>
         <div className="bz-modal__body">
           <p className="renovar-dialog__texto">
-            O prazo atual ({formatarData(documento.data_vencimento)}) vai para o histórico e os avisos de 90, 30, 7 e 1 dia recomeçam para a nova data.
+            {ehMulta
+              ? `Pagou, indicou o condutor ou apresentou a defesa? Encerre. Se chegou uma nova notificação (penalidade ou resultado da defesa), cadastre o próximo prazo: o atual (${formatarData(documento.data_vencimento)}) vai para o histórico e os avisos de 30, 7 e 1 dia recomeçam.`
+              : `O prazo atual (${formatarData(documento.data_vencimento)}) vai para o histórico e os avisos de 90, 30, 7 e 1 dia recomeçam para a nova data.`}
           </p>
           <div className="bz-field">
-            <label htmlFor="renovar-data">Nova data de vencimento</label>
+            <label htmlFor="renovar-data">{ehMulta ? 'Data-limite do próximo prazo' : 'Nova data de vencimento'}</label>
             <input className="bz-input" id="renovar-data" type="date" value={novaData} min={hojeISO()} onChange={event => setNovaData(event.target.value)} />
           </div>
           <SugestaoData tipo={documento.tipo} ufPadrao={extra?.uf} ano={anoSeguinte} onEscolher={setNovaData} />
@@ -97,9 +102,9 @@ export function RenovarDialog({ documento, nome, onClose, onRenovado, onEncerrad
             </div>
           )}
           <div className="bz-modal__actions">
-            <Button variant="ghost" disabled={salvando} onClick={encerrar}>Encerrar sem novo prazo</Button>
+            <Button variant="ghost" disabled={salvando} onClick={encerrar}>{ehMulta ? 'Encerrar: paga ou resolvida' : 'Encerrar sem novo prazo'}</Button>
             <Button variant="primary" disabled={salvando} onClick={renovar} icon={<CheckCircle2 size={16} strokeWidth={1.75} />}>
-              {salvando ? 'Salvando…' : 'Renovar com novo prazo'}
+              {salvando ? 'Salvando…' : ehMulta ? 'Cadastrar próximo prazo' : 'Renovar com novo prazo'}
             </Button>
           </div>
         </div>

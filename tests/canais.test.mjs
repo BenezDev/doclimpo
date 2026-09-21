@@ -33,6 +33,8 @@ test('texto do alerta e rótulo higienizado', () => {
   assert.equal(textoAlerta(0, 'CNH').titulo, 'Seu CNH venceu')
   assert.equal(rotuloDocumento({ tipo: 'cnh', apelido: null }), 'CNH')
   assert.equal(rotuloDocumento({ tipo: 'garantia', apelido: null }), 'Garantia')
+  // "Seu prazo da multa vence em 7 dias" — o texto do alerta é agnóstico ao tipo.
+  assert.equal(rotuloDocumento({ tipo: 'multa', apelido: null }), 'prazo da multa')
   assert.equal(rotuloDocumento({ tipo: 'cnh', apelido: 'Meu\n\tcarro    novo' }), 'Meu carro novo')
   assert.equal(higienizarTexto('x'.repeat(80), 10).length, 10)
 })

@@ -3,6 +3,8 @@
 // manda conferir na fonte. Sem & < > " ' em titulo/descricao: o build compara
 // o texto cru com o HTML escapado.
 
+import type { FonteConsulta } from '../data/consulta-multas-uf.ts'
+import { linksConsultaMultas } from './multas.ts'
 import { autoridadePara, type Autoridade } from './renovacao.ts'
 
 export interface PerguntaPublica { pergunta: string; resposta: string }
@@ -16,6 +18,12 @@ export interface DocumentoPublico {
   validade: string
   comoRenovar: string
   faqs: PerguntaPublica[]
+  // Só quando "validade/renovação" não descreve o documento (ex.: multa).
+  h1?: string
+  cta?: string
+  rotulos?: { validade?: string; renovar?: string }
+  // Canais oficiais fixos, além do portal da autoridade.
+  links?: FonteConsulta[]
 }
 
 export const DOCUMENTOS_PUBLICOS: DocumentoPublico[] = [
@@ -59,6 +67,24 @@ export const DOCUMENTOS_PUBLICOS: DocumentoPublico[] = [
       { pergunta: 'Cota única ou parcelado?', resposta: 'A cota única costuma ter desconto quando paga no prazo do início do ano; o parcelamento distribui o valor em alguns meses. As regras e percentuais são de cada estado.' },
       { pergunta: 'O DocLimpo sabe a data do meu IPVA?', resposta: 'Ao cadastrar o IPVA, informe a UF e o final da placa. Quando o calendário oficial do ano estiver carregado, o DocLimpo sugere a data com a fonte; caso contrário, digite a data que a Sefaz informa.' },
       { pergunta: 'E veículos isentos?', resposta: 'Isenções (por idade do veículo, deficiência, táxi etc.) são definidas por cada estado e pedidas na Sefaz. O DocLimpo não consulta a situação do veículo.' },
+    ],
+  },
+  {
+    slug: 'multa',
+    nome: 'Multa de trânsito',
+    h1: 'Multa de trânsito: prazo para defesa, desconto e alerta antes de vencer.',
+    cta: 'Acompanhar o prazo da minha multa',
+    rotulos: { validade: 'Quais são os prazos', renovar: 'Onde consultar e pagar' },
+    titulo: 'Multa de trânsito: prazo de defesa, desconto de 40% pelo SNE e alerta | DocLimpo',
+    descricao: 'Defesa e indicação de condutor em 30 dias, 20% de desconto até o vencimento e 40% pelo SNE. Cadastre o prazo da notificação e receba aviso antes.',
+    oQueE: 'A multa chega em duas cartas. A notificação da autuação não tem valor a pagar: abre o prazo para indicar o condutor ou apresentar defesa prévia. A notificação da penalidade traz o valor, o vencimento e o prazo de recurso. Multa não paga vira débito do veículo e impede o licenciamento (CTB, art. 131, § 2º).',
+    validade: 'Defesa prévia e indicação do condutor: no mínimo 30 dias contados da notificação da autuação (CTB, art. 281-A e art. 257, § 7º). Recurso à JARI: no mínimo 30 dias da notificação da penalidade, e essa mesma data é o vencimento do pagamento (art. 282, §§ 4º e 5º). A data impressa na notificação é a que vale.',
+    comoRenovar: 'Consulte e pague pelo Detran do seu estado, pelo Portal de Serviços SENATRAN ou pelo app Carteira Digital de Trânsito, com login gov.br. Até o vencimento, o pagamento tem 20% de desconto (CTB, art. 284); quem adere ao SNE e abre mão de defesa e recurso paga com 40% (art. 284, § 1º).',
+    links: linksConsultaMultas(),
+    faqs: [
+      { pergunta: 'Como sei se tenho multa?', resposta: 'No Portal de Serviços SENATRAN ou no app Carteira Digital de Trânsito, com sua conta gov.br, você vê as infrações por condutor ou por veículo; o site do Detran do seu estado mostra as dele. O DocLimpo não consulta multas: ele guarda o prazo que você cadastra e avisa antes.' },
+      { pergunta: 'Como consigo 40% de desconto?', resposta: 'Aderindo ao Sistema de Notificação Eletrônica (SNE) pelo Portal SENATRAN ou pelo app Carteira Digital de Trânsito, antes de a notificação ser enviada, e declarando que não vai apresentar defesa nem recurso. Vale para multas de órgãos aderentes ao SNE, pagas até o vencimento.' },
+      { pergunta: 'Qual data cadastrar no DocLimpo?', resposta: 'A data-limite impressa na notificação que você recebeu: prazo de defesa ou indicação do condutor (autuação), vencimento com desconto ou prazo de recurso (penalidade). Se tiver só a data da notificação, o DocLimpo calcula o mínimo legal de 30 dias.' },
     ],
   },
   {

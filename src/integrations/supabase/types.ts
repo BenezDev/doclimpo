@@ -532,6 +532,33 @@ export type Database = {
         }
         Relationships: []
       }
+      veiculos: {
+        Row: {
+          apelido: string | null
+          criado_em: string
+          id: string
+          placa: string
+          uf: string
+          usuario_id: string
+        }
+        Insert: {
+          apelido?: string | null
+          criado_em?: string
+          id?: string
+          placa: string
+          uf: string
+          usuario_id: string
+        }
+        Update: {
+          apelido?: string | null
+          criado_em?: string
+          id?: string
+          placa?: string
+          uf?: string
+          usuario_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

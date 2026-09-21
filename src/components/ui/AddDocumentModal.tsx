@@ -7,12 +7,15 @@ import { interpretarErro, textoDaFalha, type FalhaAoSalvar } from '../../lib/err
 import { documentoSchema } from '../../lib/validacao'
 import { bezelSpring } from '../../lib/motion'
 import { Button, DocumentGlyph } from './Bezel'
+import { finalDaPlaca } from '../../lib/calendario-veicular'
+import type { Veiculo } from '../../lib/veiculos'
 import { SugestaoData, type ExtraVeicular } from './SugestaoData'
 
 const TIPOS = [
   { id: 'cnh', label: 'CNH', description: 'Carteira de motorista' },
   { id: 'crlv', label: 'CRLV', description: 'Documento do veículo' },
   { id: 'ipva', label: 'IPVA', description: 'Imposto do veículo' },
+  { id: 'multa', label: 'Multa de trânsito', description: 'Defesa, desconto ou recurso' },
   { id: 'passaporte', label: 'Passaporte', description: 'Documento de viagem' },
   { id: 'rg', label: 'RG', description: 'Identidade' },
   { id: 'seguro', label: 'Seguro auto', description: 'Apólice do veículo' },
@@ -38,16 +41,23 @@ interface Props {
   mostrarEmpresariais?: boolean
   // UF do endereço do perfil, para pré-selecionar a sugestão de IPVA/CRLV.
   ufPadrao?: string | null
+  // Abre direto na etapa 2 com o tipo escolhido (card "Seu carro").
+  tipoInicial?: string
+  // Veículo do painel: pré-preenche UF e final da placa nas sugestões e no extra.
+  veiculo?: Pick<Veiculo, 'uf' | 'placa'> | null
 }
 
+const TIPOS_VEICULARES = ['ipva', 'crlv', 'multa']
+
 export function AddDocumentModal(props: Props) {
-  const { onClose, onSuccess, onLimite, mostrarEmpresariais = false, ufPadrao } = props
+  const { onClose, onSuccess, onLimite, mostrarEmpresariais = false, ufPadrao, tipoInicial, veiculo } = props
   const tipos = TIPOS.filter(item => mostrarEmpresariais || !item.empresarial)
+  const inicial = tipos.find(item => item.id === tipoInicial)?.id ?? ''
   const { user } = useAuth()
   const reduceMotion = useReducedMotion()
   const dialogRef = useRef<HTMLDivElement>(null)
-  const [step, setStep] = useState(1)
-  const [tipo, setTipo] = useState('')
+  const [step, setStep] = useState(inicial ? 2 : 1)
+  const [tipo, setTipo] = useState(inicial)
   const [apelido, setApelido] = useState('')
   const [data, setData] = useState('')
   const [extra, setExtra] = useState<ExtraVeicular | undefined>(undefined)
@@ -95,7 +105,11 @@ export function AddDocumentModal(props: Props) {
     setLoading(true)
     setFalha(null)
 
-    const validado = documentoSchema.safeParse({ tipo, apelido, data_vencimento: data, extra })
+    // Data digitada à mão com veículo conhecido: guarda a UF mesmo assim, para
+    // o detalhe mostrar o Detran certo e a renovação sugerir o próximo prazo.
+    const placaFinal = veiculo ? finalDaPlaca(veiculo.placa) : null
+    const extraFinal = extra ?? (veiculo && placaFinal && TIPOS_VEICULARES.includes(tipo) ? { uf: veiculo.uf, placa_final: placaFinal } : undefined)
+    const validado = documentoSchema.safeParse({ tipo, apelido, data_vencimento: data, extra: extraFinal })
     if (!validado.success) {
       setFalha({ tipo: 'generico', mensagem: validado.error.issues[0]?.message ?? 'Dados inválidos.' })
       setLoading(false)
@@ -181,10 +195,10 @@ export function AddDocumentModal(props: Props) {
           <div className="bz-modal__body">
             <p className="bz-modal__lead">{selectedDocument?.label} selecionado. Agora falta a data que move todo o sistema.</p>
             <div className="bz-field">
-              <label htmlFor="modal-data">Data de vencimento</label>
+              <label htmlFor="modal-data">{tipo === 'multa' ? 'Data-limite do prazo' : 'Data de vencimento'}</label>
               <input className="bz-input" id="modal-data" type="date" value={data} onChange={event => { setData(event.target.value); setExtra(undefined) }} />
             </div>
-            <SugestaoData tipo={tipo} ufPadrao={ufPadrao} onEscolher={(sugerida, dados) => { setData(sugerida); setExtra(dados) }} />
+            <SugestaoData tipo={tipo} ufPadrao={ufPadrao} veiculo={veiculo} onEscolher={(sugerida, dados) => { setData(sugerida); setExtra(dados) }} />
             <div className="bz-field">
               <label htmlFor="modal-apelido">Apelido <span className="bz-field__optional">(opcional)</span></label>
               <input

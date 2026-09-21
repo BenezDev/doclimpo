@@ -48,12 +48,12 @@ async function renderPage(path, location, { user = null, loading = false, props 
     createElement(AuthContext.Provider, { value: { user, loading, session: null, signOut: async () => {} } }, createElement(Page, props))))
 }
 
-test('landing renderiza cinco FAQs, três cases rotulados e links reais', async () => {
+test('landing renderiza cinco FAQs, quatro cases rotulados e links reais', async () => {
   const html = await renderPage('Landing_1', '/')
   assert.equal((html.match(/<details /g) ?? []).length, 5)
-  assert.equal((html.match(/class="landing-card case-card"/g) ?? []).length, 3)
+  assert.equal((html.match(/class="landing-card case-card"/g) ?? []).length, 4)
   assert.match(html, /Cenários ilustrativos/)
-  for (const path of ['/cadastro', '/cadastro?documento=cnh', '/cadastro?documento=passaporte', '/cadastro?documento=seguro', '/privacidade', '/termos', '/login']) assert.ok(html.includes(`href="${path}"`))
+  for (const path of ['/cadastro', '/cadastro?documento=multa', '/cadastro?documento=cnh', '/cadastro?documento=passaporte', '/cadastro?documento=seguro', '/privacidade', '/termos', '/login']) assert.ok(html.includes(`href="${path}"`))
   assert.doesNotMatch(html, /href="#"|SYNC 09:00/)
   const ids = new Set([...html.matchAll(/id="([^"]+)"/g)].map(match => match[1]))
   for (const match of html.matchAll(/href="#([^"]+)"/g)) assert.ok(ids.has(match[1]), `âncora ausente: ${match[1]}`)
@@ -147,7 +147,7 @@ test('redefinição de senha sem sessão não mostra formulário; com sessão pe
 })
 test('conta expõe alertas, senha, endereço, plano, exportação e exclusão sem tocar no backend na renderização', async () => {
   const html = await renderPage('Conta', '/conta', { user: { id: 'fixture-user', email: 'pessoa@example.test', user_metadata: { nome: 'Pessoa' } } })
-  for (const text of ['Avisos por e-mail', 'Enviar e-mail de teste', 'Notificações no navegador', 'Trocar senha', 'Onde renovar perto de você', 'Plano gratuito', 'Ver planos', 'Exportar meus dados', 'Excluir conta', 'pessoa@example.test']) assert.ok(html.includes(text), text)
+  for (const text of ['Avisos por e-mail', 'Enviar e-mail de teste', 'Notificações no navegador', 'Trocar senha', 'Onde renovar perto de você', 'Meu veículo', 'id="veiculo-placa"', 'Plano gratuito', 'Ver planos', 'Exportar meus dados', 'Excluir conta', 'pessoa@example.test']) assert.ok(html.includes(text), text)
   assert.match(html, /role="switch"/)
   assert.match(html, /href="\/termos"/)
   assert.match(html, /href="\/privacidade"/)
@@ -178,6 +178,17 @@ test('diálogo de renovação sugere +1 ano e oferece encerrar sem novo prazo, s
     createElement(RenovarDialog, { documento: { id: 'y', tipo: 'ipva', apelido: null, data_vencimento: '2026-01-23', extra: { uf: 'SP', placa_final: '5' } }, nome: 'IPVA', onClose() {}, onRenovado() {}, onEncerrado() {} })))
   assert.match(ipva, /Sugerir pelo calendário 2027/)
   assert.match(ipva, /value="SP"/)
+  // Multa: próximo prazo é a próxima notificação (+30 dias de hoje), com cópia própria.
+  const { hojeISO, somarDias } = await server.ssrLoadModule('/src/lib/datas.ts')
+  const multa = renderToStaticMarkup(createElement(MemoryRouter, { initialEntries: ['/documento/z'] },
+    createElement(RenovarDialog, { documento: { id: 'z', tipo: 'multa', apelido: null, data_vencimento: '2026-10-12', extra: { uf: 'SP', placa_final: '5' } }, nome: 'Multa', onClose() {}, onRenovado() {}, onEncerrado() {} })))
+  assert.match(multa, /Resolveu a multa\?/)
+  assert.ok(multa.includes(`value="${somarDias(hojeISO(), 30)}"`))
+  assert.match(multa, /Cadastrar próximo prazo/)
+  assert.match(multa, /Encerrar: paga ou resolvida/)
+  assert.match(multa, /Calcular pelo prazo legal/)
+  assert.match(multa, /30, 7 e 1 dia/)
+  assert.doesNotMatch(multa, /Renovou/)
 })
 test('páginas públicas por documento: h1 único, CTA com o tipo, portal oficial e hub com todos os links', async () => {
   const { default: DocumentoPublico } = await server.ssrLoadModule('/src/pages/DocumentoPublico.tsx')
@@ -192,9 +203,15 @@ test('páginas públicas por documento: h1 único, CTA com o tipo, portal oficia
   assert.doesNotMatch(cnh, /<script[^>]*\ssrc=|<img[^>]*\ssrc="http/)
   const desconhecido = renderTipo('/documentos/xyz')
   assert.match(desconhecido, /Erro 404/)
+  const multa = renderTipo('/documentos/multa')
+  assert.equal((multa.match(/<h1[\s>]/g) ?? []).length, 1)
+  assert.match(multa, /Onde consultar e pagar/)
+  assert.match(multa, /portalservicos\.senatran\.serpro\.gov\.br/)
+  assert.match(multa, /art\. 284/)
+  assert.doesNotMatch(multa, /validade, renovação e alerta/)
   const hub = await renderPage('DocumentosHub', '/documentos')
   const { SLUGS_PUBLICOS } = await server.ssrLoadModule('/src/lib/documentos-publicos.ts')
-  assert.equal(SLUGS_PUBLICOS.length, 11)
+  assert.equal(SLUGS_PUBLICOS.length, 12)
   for (const slug of SLUGS_PUBLICOS) assert.ok(hub.includes(`href="/documentos/${slug}"`), slug)
 })
 test('paywall lista os três planos, destaca o Individual e nunca envia preço ao servidor', async () => {
@@ -210,4 +227,35 @@ test('paywall lista os três planos, destaca o Individual e nunca envia preço a
   const fonte = await readFile(new URL('../src/components/ui/PlanosModal.tsx', import.meta.url), 'utf8')
   assert.doesNotMatch(fonte, /price_|precoCentavos.*invoke|body: \{ plano, /)
   assert.match(fonte, /body: \{ plano \}/)
+})
+test('painel do carro: dashboard pede a placa, modal abre em multa com o prazo legal, e o detalhe lista canais oficiais fixos', async () => {
+  // Dashboard sem veículo: card "Seu carro" com o formulário compacto; effects não rodam no SSR.
+  const dashboard = await renderPage('Dashboard', '/dashboard', { user: { id: 'fixture-user', email: 'pessoa@example.test', user_metadata: { nome: 'Pessoa' } } })
+  assert.match(dashboard, /id="dashboard-veiculo-titulo"/)
+  assert.match(dashboard, /Cadastre a placa/)
+  assert.match(dashboard, /id="veiculo-placa-compacto"/)
+
+  // Modal já em "Multa de trânsito", com UF e final da placa do veículo indo para o extra.
+  const { AddDocumentModal } = await server.ssrLoadModule('/src/components/ui/AddDocumentModal.tsx')
+  const modal = renderToStaticMarkup(createElement(MemoryRouter, { initialEntries: ['/dashboard'] },
+    createElement(AuthContext.Provider, { value: { user: { id: 'fixture-user' }, loading: false, session: null, signOut: async () => {} } },
+      createElement(AddDocumentModal, { dark: false, tipoInicial: 'multa', veiculo: { uf: 'SP', placa: 'ABC1D23' }, onClose() {}, onSuccess() {} }))))
+  assert.match(modal, /ETAPA 02 \/ 02/)
+  assert.match(modal, /Multa de trânsito selecionado/)
+  assert.match(modal, /Data-limite do prazo/)
+  assert.match(modal, /Calcular pelo prazo legal/)
+  assert.match(modal, /Defesa prévia ou indicação do condutor/)
+  assert.match(modal, /O DocLimpo não consulta multas/)
+
+  // Canais oficiais: Detran da UF (quando conferido) + SENATRAN + SNE; nunca a placa na URL.
+  const { OndeConsultarMultas } = await server.ssrLoadModule('/src/components/ui/OndeConsultarMultas.tsx')
+  const sp = renderToStaticMarkup(createElement(MemoryRouter, { initialEntries: ['/documento/x'] }, createElement(OndeConsultarMultas, { uf: 'SP' })))
+  assert.match(sp, /Onde consultar e pagar/)
+  assert.match(sp, /detran\.sp\.gov\.br/)
+  assert.match(sp, /minha-adesao-sne/)
+  assert.equal((sp.match(/target="_blank" rel="noopener noreferrer"/g) ?? []).length, 3)
+  assert.doesNotMatch(sp, /ABC1D23/)
+  const semUf = renderToStaticMarkup(createElement(MemoryRouter, { initialEntries: ['/documento/x'] }, createElement(OndeConsultarMultas, { uf: null })))
+  assert.match(semUf, /href="\/conta"/)
+  assert.equal((semUf.match(/target="_blank"/g) ?? []).length, 2)
 })

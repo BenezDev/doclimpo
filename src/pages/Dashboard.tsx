@@ -1,20 +1,24 @@
 import { motion, useReducedMotion } from 'framer-motion'
 import {
   AlertTriangle,
+  CarFront,
   CheckCircle2,
   ChevronRight,
   CircleAlert,
+  ExternalLink,
   FilePlus2,
   LogOut,
   Plus,
+  Siren,
   UserRound,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { AddDocumentModal } from '../components/ui/AddDocumentModal'
 import { EnderecoModal } from '../components/ui/EnderecoModal'
 import { PlanosModal } from '../components/ui/PlanosModal'
 import { RenovarDialog } from '../components/ui/RenovarDialog'
+import { VeiculoForm } from '../components/ui/VeiculoForm'
 import {
   Brand,
   Button,
@@ -27,7 +31,9 @@ import { usePlano } from '../hooks/usePlano'
 import { useTheme } from '../hooks/useTheme'
 import { supabase } from '../integrations/supabase/client'
 import { precisaPedirEndereco, type PerfilEndereco } from '../lib/endereco'
+import { linksConsultaMultas } from '../lib/multas'
 import { podeAdicionarDocumento, rotuloPlano } from '../lib/planos'
+import { LIMITE_VEICULOS, formatarPlaca, type Veiculo } from '../lib/veiculos'
 import { diasRestantes, formatarData, statusPorDias } from '../lib/datas'
 import { bezelSpring, stagger } from '../lib/motion'
 
@@ -45,6 +51,7 @@ const LABELS: Record<string, string> = {
   cnh: 'CNH',
   crlv: 'CRLV',
   ipva: 'IPVA',
+  multa: 'Multa de trânsito',
   passaporte: 'Passaporte',
   rg: 'RG',
   seguro: 'Seguro auto',
@@ -74,7 +81,9 @@ export default function Dashboard() {
   const [docs, setDocs] = useState<Documento[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
-  const [modal, setModal] = useState(false)
+  // null = fechado; tipo/veículo pré-escolhidos vêm do card "Seu carro".
+  const [modal, setModal] = useState<{ tipo?: string; veiculo?: Veiculo } | null>(null)
+  const [veiculos, setVeiculos] = useState<Veiculo[]>([])
   const [version, setVersion] = useState(0)
   const [filter, setFilter] = useState<Filter>('todos')
   const [resolvidos, setResolvidos] = useState<Documento[]>([])
@@ -145,6 +154,18 @@ export default function Dashboard() {
     return () => { cancelled = true }
   }, [user])
 
+  useEffect(() => {
+    if (!user) return
+    let cancelled = false
+    supabase
+      .from('veiculos')
+      .select('id, placa, uf, apelido')
+      .eq('usuario_id', user.id)
+      .order('criado_em')
+      .then(({ data }) => { if (!cancelled) setVeiculos(data ?? []) })
+    return () => { cancelled = true }
+  }, [user])
+
   // Volta do Checkout do Stripe: sincroniza o plano na hora (o webhook é a
   // fonte contínua; isto cobre a janela até o evento chegar) e limpa a URL.
   useEffect(() => {
@@ -186,13 +207,13 @@ export default function Dashboard() {
 
   // Gate do plano: no limite, abre a assinatura em vez do formulário. O banco
   // impõe o mesmo limite (trigger enforce_plan_limits) caso o gate seja burlado.
-  const abrirAdicionar = () => {
-    if (podeAdicionarDocumento(plano, docs.length)) setModal(true)
+  const abrirAdicionar = (tipo?: string, veiculo?: Veiculo) => {
+    if (podeAdicionarDocumento(plano, docs.length)) setModal({ tipo, veiculo })
     else setMostrarPlanos(true)
   }
 
   const abrirPlanosPorLimite = () => {
-    setModal(false)
+    setModal(null)
     setMostrarPlanos(true)
   }
 
@@ -237,12 +258,14 @@ export default function Dashboard() {
       {modal && (
         <AddDocumentModal
           dark={dark}
-          onClose={() => setModal(false)}
+          onClose={() => setModal(null)}
           onLimite={abrirPlanosPorLimite}
           mostrarEmpresariais={plano === 'MEI'}
           ufPadrao={perfilEndereco?.uf}
+          tipoInicial={modal.tipo}
+          veiculo={modal.veiculo ?? veiculos[0]}
           onSuccess={() => {
-            setModal(false)
+            setModal(null)
             const primeiro = docs.length === 0
             reloadDocuments()
             if (primeiro && precisaPedirEndereco(perfilEndereco, enderecoAdiado)) setMostrarEndereco(true)
@@ -287,7 +310,7 @@ export default function Dashboard() {
             <h1>{saudacao}, {nome}.</h1>
             <p>Veja o que precisa de atenção antes que vire urgência.</p>
           </div>
-          <Button variant="primary" size="lg" onClick={abrirAdicionar} icon={<Plus size={18} strokeWidth={1.75} />}>
+          <Button variant="primary" size="lg" onClick={() => abrirAdicionar()} icon={<Plus size={18} strokeWidth={1.75} />}>
             Adicionar documento
           </Button>
         </section>
@@ -330,6 +353,43 @@ export default function Dashboard() {
             <span>Críticos</span>
             <strong className="bz-data">{critical.toString().padStart(2, '0')}</strong>
           </div>
+        </section>
+
+        <section className="detail-panel dashboard-veiculo" aria-labelledby="dashboard-veiculo-titulo">
+          <div className="detail-panel__title">
+            <CarFront size={18} strokeWidth={1.75} />
+            <div>
+              <span className="bz-micro">Seu carro{veiculos.length > 0 && ` · ${veiculos.length}/${LIMITE_VEICULOS}`}</span>
+              <h2 id="dashboard-veiculo-titulo">{veiculos.length > 0 ? 'Multas, IPVA e licenciamento' : 'Cadastre a placa'}</h2>
+            </div>
+          </div>
+          {veiculos.length === 0 ? (
+            <>
+              <p>Com a placa e a UF, você tem aqui os links oficiais para consultar multas, IPVA e licenciamento — e cadastra o prazo da multa em um toque.</p>
+              <VeiculoForm compacto ufPadrao={perfilEndereco?.uf} onSalvo={veiculo => setVeiculos(atual => [...atual, veiculo])} />
+            </>
+          ) : (
+            <ul className="dashboard-veiculo__lista">
+              {veiculos.map(veiculo => (
+                <li className="dashboard-veiculo__linha" key={veiculo.id}>
+                  <div className="dashboard-veiculo__placa">
+                    <strong className="bz-data">{formatarPlaca(veiculo.placa)}</strong>
+                    <span>{veiculo.uf}{veiculo.apelido ? ` · ${veiculo.apelido}` : ''}</span>
+                  </div>
+                  <div className="dashboard-veiculo__acoes">
+                    {linksConsultaMultas(veiculo.uf).map(fonte => (
+                      <a className="onde-renovar__link" key={fonte.url} href={fonte.url} target="_blank" rel="noopener noreferrer">
+                        {fonte.rotulo} <ExternalLink size={12} strokeWidth={1.75} aria-hidden="true" />
+                      </a>
+                    ))}
+                    <Button variant="primary" size="sm" onClick={() => abrirAdicionar('multa', veiculo)} icon={<Siren size={15} strokeWidth={1.75} />}>Cadastrar multa</Button>
+                    <Button variant="ghost" size="sm" onClick={() => abrirAdicionar(undefined, veiculo)}>IPVA / licenciamento</Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          <small>Links oficiais: você se identifica no órgão. O DocLimpo não consulta multas nem recebe pagamentos. <Link to="/conta">Gerenciar veículos</Link></small>
         </section>
 
         <section className="documents-section">
@@ -376,7 +436,7 @@ export default function Dashboard() {
               <span className="documents-empty__icon"><FilePlus2 size={28} strokeWidth={1.75} /></span>
               <h3>Nenhum documento ainda</h3>
               <p>Cadastre o primeiro prazo para o painel começar a trabalhar.</p>
-              <Button variant="primary" onClick={abrirAdicionar} icon={<Plus size={17} strokeWidth={1.75} />}>Cadastrar primeiro documento</Button>
+              <Button variant="primary" onClick={() => abrirAdicionar()} icon={<Plus size={17} strokeWidth={1.75} />}>Cadastrar primeiro documento</Button>
             </div>
           ) : !historico && filteredDocuments.length === 0 ? (
             <div className="documents-empty documents-empty--compact">
@@ -423,7 +483,7 @@ export default function Dashboard() {
                       <div className="documents-table__action" role="cell">
                         {!historico && (
                           <Button variant="ghost" size="sm" onClick={event => abrirRenovacao(document, event)} icon={<CheckCircle2 size={15} strokeWidth={1.75} />}>
-                            Renovado
+                            {document.tipo === 'multa' ? 'Resolvida' : 'Renovado'}
                           </Button>
                         )}
                         <ChevronRight size={17} strokeWidth={1.75} aria-hidden="true" />
@@ -465,7 +525,7 @@ export default function Dashboard() {
                         <time dateTime={document.data_vencimento}>{formatarData(document.data_vencimento)}</time>
                       </div>
                       <div className="document-card__footer">
-                        {!historico && <Button variant="ghost" size="sm" onClick={event => abrirRenovacao(document, event)} icon={<CheckCircle2 size={15} strokeWidth={1.75} />}>Renovado</Button>}
+                        {!historico && <Button variant="ghost" size="sm" onClick={event => abrirRenovacao(document, event)} icon={<CheckCircle2 size={15} strokeWidth={1.75} />}>{document.tipo === 'multa' ? 'Resolvida' : 'Renovado'}</Button>}
                         <span>Ver detalhes <ChevronRight size={15} strokeWidth={1.75} /></span>
                       </div>
                       <progress

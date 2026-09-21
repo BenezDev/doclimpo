@@ -37,14 +37,16 @@ src/
   pages/          Landing_1 · Login (com recuperação de senha) · RedefinirSenha · Onboarding ·
                   Dashboard · DocumentoDetalhe · Conta · Privacy · Termos · ThankYou · NotFound ·
                   DocumentosHub e DocumentoPublico (/documentos/<tipo>, SEO)
-  components/ui/  AddDocumentModal · EnderecoModal · OndeRenovar · RenovarDialog · SugestaoData ·
-                  CookieConsent · PublicShell · Bezel
+  components/ui/  AddDocumentModal · EnderecoModal · OndeRenovar · OndeConsultarMultas · RenovarDialog ·
+                  SugestaoData · VeiculoForm · CookieConsent · PublicShell · Bezel
   context/        auth-context.ts (contexto) · AuthContext.tsx (provider)
   hooks/          useAuth · usePlano (rpc meu_plano com fallback em plan_type)
   lib/            datas.ts (parse por partes, dias, formatação) · erros.ts · planos.ts (catálogo,
                   canais, WHATSAPP_DISPONIVEL) · agenda.ts (.ics/Google Agenda) · cnh.ts ·
-                  calendario-veicular.ts · push.ts · telefone.ts · documentos-publicos.ts
-  data/           calendario-veicular.ts (IPVA/licenciamento por UF e placa, só fonte oficial)
+                  calendario-veicular.ts · multas.ts (prazos do CTB, links por UF) · veiculos.ts (placa) ·
+                  push.ts · telefone.ts · documentos-publicos.ts
+  data/           calendario-veicular.ts (IPVA/licenciamento por UF e placa) · consulta-multas-uf.ts
+                  (onde consultar multas por UF + SENATRAN/SNE) — só fonte oficial, com `verificadoEm`
   integrations/supabase/  client.ts (único client, tipado) · types.ts
 public/sw.js      service worker só de push (sem cache)
 supabase/
@@ -57,7 +59,7 @@ de propósito, senão o fast refresh do Vite quebra.
 
 ## Banco
 
-9 tabelas, todas com RLS habilitado e políticas por `auth.uid()`. **O RLS é a
+10 tabelas, todas com RLS habilitado e políticas por `auth.uid()`. **O RLS é a
 parte mais confiável do projeto** — verificado ativo em produção.
 
 Pontos a saber:
@@ -70,6 +72,14 @@ Pontos a saber:
   segundo documento de um usuário FREE. Trate esse erro no frontend com
   `interpretarErro()` de `lib/erros.ts` — é o principal gate de conversão.
 - `subscriptions` e `payments` não são escritas por nada: falta o webhook do Stripe.
+- `veiculos` (placa + UF + apelido, até 5 por usuário via trigger `VEICULO_LIMIT`) alimenta o card
+  "Seu carro" do Dashboard e o painel "Meu veículo" da Conta. **O DocLimpo não consulta multas**:
+  os links de `data/consulta-multas-uf.ts` são fixos por UF e a placa nunca entra em URL. Consulta
+  automática (API paga, renavam, consentimento) é fase 2 — não está construída.
+- Tipo `multa` (todos os planos): `SugestaoData` calcula o prazo mínimo do CTB (defesa/indicação
+  +30 dias da notificação; recurso +30; desconto vem impresso), o detalhe troca `OndeRenovar` por
+  `OndeConsultarMultas` e `RenovarDialog` vira "próximo prazo" (+30 dias). Vercel rotas em
+  `vercel.json` são manuais: página pública nova exige entrada lá.
 
 ## Alertas
 

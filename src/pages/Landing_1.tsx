@@ -11,6 +11,7 @@ import {
   MapPin,
   PencilLine,
   ShieldCheck,
+  Siren,
 } from 'lucide-react'
 import { useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
@@ -24,6 +25,7 @@ import '../styles/landing.css'
 
 const sampleDocuments = [
   { type: 'cnh', title: 'CNH', days: 5 },
+  { type: 'multa', title: 'Multa · radar', days: 12 },
   { type: 'crlv', title: 'CRLV · carro', days: 51 },
   { type: 'passaporte', title: 'Passaporte', days: 160 },
 ].map(document => ({ ...document, date: formatarData(somarDias(hojeISO(), document.days)), status: statusPorDias(document.days).id }))
@@ -48,10 +50,11 @@ const steps = [
 const features = [
   { icon: Mail, title: 'Alertas por e-mail e no navegador', text: 'Avisos em 90, 30, 7 e 1 dia antes do vencimento por e-mail. Nos planos pagos, também como notificação no navegador ou celular.' },
   { icon: MapPin, title: 'Onde renovar, por documento', text: 'Cada documento mostra o órgão responsável. Com seu CEP, opcional, aparece a unidade mais próxima.' },
+  { icon: Siren, title: 'Multa: avisa antes de perder o desconto', text: 'Cadastre a data da notificação: o DocLimpo calcula o prazo legal de defesa ou recurso, avisa 30, 7 e 1 dia antes e mostra onde consultar e pagar (Detran, SENATRAN, SNE com 40% de desconto).' },
   { icon: PencilLine, title: 'Apelido e data editáveis', text: 'Dê um nome ao documento e ajuste a data quando renovar.' },
   { icon: CheckCircle2, title: 'Marcar como renovado', text: 'Renovou? Marque o documento e ele sai da lista de vencimentos.' },
   { icon: ShieldCheck, title: 'Só os dados necessários', text: 'Tipo, data e apelido. Sem foto e sem o número do documento.' },
-  { icon: Ban, title: 'Não renova nem paga por você', text: 'A renovação e as taxas continuam nos canais oficiais. O DocLimpo avisa; a renovação é sua.', limit: true },
+  { icon: Ban, title: 'Não renova nem paga por você', text: 'A renovação, as taxas e o pagamento de multas continuam nos canais oficiais. O DocLimpo avisa e mostra o link; o resto é seu.', limit: true },
 ]
 
 export default function Landing() {
@@ -91,7 +94,7 @@ export default function Landing() {
             <span className="landing-eyebrow">Alertas de vencimento por e-mail</span>
             <h1 id="titulo">Saiba antes que o documento vença.</h1>
             <p className="landing-hero__lead">
-              Cadastre CNH, CRLV, IPVA, passaporte e outros documentos com a data de vencimento.
+              Cadastre CNH, CRLV, IPVA, multas de trânsito, passaporte e outros documentos com a data de vencimento.
               O DocLimpo envia um e-mail 90, 30, 7 e 1 dia antes.
             </p>
             <div className="landing-hero__actions">
@@ -168,7 +171,7 @@ export default function Landing() {
               <h2 id="casos-titulo">Documentos que vencem enquanto a vida acontece.</h2>
               <p>Comece pelo que mais importa para você. Cada caso abre o cadastro já com o tipo escolhido.</p>
             </div>
-            <div className="landing-grid">
+            <div className="landing-grid landing-grid--casos">
               {useCases.map(item => (
                 <article className="landing-card case-card" key={item.type}>
                   <div className="case-card__label"><DocumentGlyph type={item.type} /><span className="bz-micro">{item.label}</span></div>

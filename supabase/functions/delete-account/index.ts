@@ -46,6 +46,7 @@ Deno.serve(async (req) => {
       { tabela: "notifications", coluna: "usuario_id" },
       { tabela: "push_subscriptions", coluna: "usuario_id" },
       { tabela: "whatsapp_verificacoes", coluna: "usuario_id" },
+      { tabela: "veiculos", coluna: "usuario_id" },
       { tabela: "documentos", coluna: "usuario_id" },
       { tabela: "payments", coluna: "usuario_id" },
       { tabela: "subscriptions", coluna: "usuario_id" },

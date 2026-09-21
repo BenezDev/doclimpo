@@ -5,7 +5,7 @@ export const siteOrigin = 'https://www.doclimpo.com'
 export interface PageMeta { title: string; description: string; index: boolean; path: string }
 
 export const publicPages: Record<string, PageMeta> = {
-  '/': { title: 'DocLimpo — seus documentos, antes do prazo', description: 'Organize os vencimentos de CNH, CRLV, passaporte e outros documentos. Conheça os alertas por e-mail e acompanhe seu primeiro documento grátis.', index: true, path: '/' },
+  '/': { title: 'DocLimpo — seus documentos, antes do prazo', description: 'Organize os vencimentos de CNH, CRLV, IPVA, multas de trânsito, passaporte e outros documentos. Conheça os alertas por e-mail e acompanhe seu primeiro documento grátis.', index: true, path: '/' },
   '/cadastro': { title: 'Criar conta gratuita | DocLimpo', description: 'Crie sua conta no DocLimpo e organize o primeiro vencimento gratuitamente. Sem cartão e sem enviar uma cópia do documento.', index: true, path: '/cadastro' },
   '/login': { title: 'Entrar na sua conta | DocLimpo', description: 'Acesse sua conta DocLimpo para consultar documentos, conferir próximos vencimentos e atualizar seus prazos.', index: false, path: '/login' },
   '/obrigado': { title: 'Seu próximo passo | DocLimpo', description: 'Confira as próximas etapas do cadastro no DocLimpo: confirmação do e-mail, acesso à conta e primeiro documento.', index: false, path: '/obrigado' },
@@ -16,7 +16,7 @@ export const publicPages: Record<string, PageMeta> = {
   '/onboarding': { title: 'Cadastrar primeiro documento | DocLimpo', description: 'Escolha o tipo de documento e informe a data de vencimento para começar a organizar seus prazos no DocLimpo.', index: false, path: '/onboarding' },
   '/dashboard': { title: 'Meu painel de documentos | DocLimpo', description: 'Consulte seus documentos e próximos vencimentos no painel privado do DocLimpo.', index: false, path: '/dashboard' },
   '/404': { title: 'Página não encontrada | DocLimpo', description: 'Este endereço não foi encontrado. Volte ao início do DocLimpo ou acesse seu painel de documentos.', index: false, path: '/404' },
-  '/documentos': { title: 'Documentos e prazos: guia de validade e renovação | DocLimpo', description: 'CNH, CRLV, IPVA, passaporte, RG, seguro, plano de saúde e mais: quanto tempo vale cada documento, onde renovar e como receber aviso antes de vencer.', index: true, path: '/documentos' },
+  '/documentos': { title: 'Documentos e prazos: guia de validade e renovação | DocLimpo', description: 'CNH, CRLV, IPVA, multa de trânsito, passaporte, RG, seguro, plano de saúde e mais: quanto tempo vale cada documento, onde renovar e como receber aviso antes de vencer.', index: true, path: '/documentos' },
   ...Object.fromEntries(DOCUMENTOS_PUBLICOS.map(item => [`/documentos/${item.slug}`, { title: item.titulo, description: item.descricao, index: true, path: `/documentos/${item.slug}` }])),
 }
 

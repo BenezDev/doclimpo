@@ -6,6 +6,7 @@ export type TipoDocumento =
   | 'cnh'
   | 'crlv'
   | 'ipva'
+  | 'multa'
   | 'passaporte'
   | 'rg'
   | 'seguro'
@@ -53,6 +54,14 @@ const AUTORIDADES: Record<TipoDocumento, Autoridade> = {
     privado: false,
     termoBusca: 'IPVA licenciamento',
     observacao: 'O IPVA costuma ser resolvido online, pelo portal da Secretaria da Fazenda do seu estado.',
+  },
+  multa: {
+    rede: 'detran',
+    orgao: 'Detran / órgão autuador',
+    privado: true,
+    termoBusca: 'Detran multas',
+    portalUrl: 'https://portalservicos.senatran.serpro.gov.br/',
+    observacao: 'Multas são consultadas e pagas online: no Detran do estado, no Portal de Serviços SENATRAN ou no app Carteira Digital de Trânsito, onde a adesão ao SNE dá 40% de desconto se você não apresentar defesa nem recurso.',
   },
   passaporte: {
     rede: 'pf',

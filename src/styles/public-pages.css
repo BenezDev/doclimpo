@@ -74,6 +74,9 @@ a.bz-button { text-decoration: none; }
 .documento-publico__heading .bz-micro a { color: inherit; }
 .documento-publico__outros { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0; padding: 0; list-style: none; }
 .documento-publico__outros a { display: inline-flex; align-items: center; gap: 4px; font-size: 14px; }
+.documento-publico__links { display: flex; flex-direction: column; gap: 8px; margin: 0 0 16px; padding: 0; list-style: none; }
+.documento-publico__links a { display: inline-flex; align-items: center; gap: 4px; font-weight: 500; }
+.documento-publico__links small { display: block; color: var(--bz-text-muted); font-size: 12px; line-height: 1.5; }
 .privacy-body dd a { display: inline-flex; align-items: center; gap: 4px; }
 .documentos-hub { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 0; padding: 0; list-style: none; }
 .documentos-hub__card { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 18px; background: var(--bz-surface); border: 1px solid var(--bz-hairline); border-radius: 14px; color: var(--bz-text); text-decoration: none; }

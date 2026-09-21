@@ -22,6 +22,7 @@ import {
   ThemeToggle,
 } from '../components/ui/Bezel'
 import { EnderecoModal } from '../components/ui/EnderecoModal'
+import { OndeConsultarMultas } from '../components/ui/OndeConsultarMultas'
 import { OndeRenovar } from '../components/ui/OndeRenovar'
 import { RenovarDialog } from '../components/ui/RenovarDialog'
 import { useAuth } from '../hooks/useAuth'
@@ -39,6 +40,7 @@ const LABELS: Record<string, string> = {
   cnh: 'CNH',
   crlv: 'CRLV',
   ipva: 'IPVA',
+  multa: 'Multa de trânsito',
   passaporte: 'Passaporte',
   rg: 'RG',
   seguro: 'Seguro auto',
@@ -98,6 +100,15 @@ const GUIDES: Record<string, Guide> = {
       { title: 'Consulte o calendário estadual', description: 'Confira vencimento e valor no portal da Secretaria da Fazenda.', time: '10 min', cost: 'Valor oficial' },
       { title: 'Escolha a forma de pagamento', description: 'Verifique as opções de cota única ou parcelamento disponíveis.', time: '10 min', cost: 'Conforme o veículo' },
       { title: 'Pague e guarde o comprovante', description: 'Use um canal bancário autorizado e acompanhe a compensação.', time: '1–3 dias', cost: 'Conforme o veículo' },
+    ],
+  },
+  multa: {
+    risk: 'Perder o prazo custa o desconto (20%, ou 40% pelo SNE), a chance de defesa ou de indicar o condutor, e a multa vira débito que trava o licenciamento (CTB, art. 131, § 2º).',
+    steps: [
+      { title: 'Confira qual notificação recebeu', description: 'Autuação (sem valor, abre prazo de defesa e indicação do condutor) ou penalidade (com valor, vencimento e prazo de recurso). A data impressa é a que vale.', time: '5 min', cost: 'Sem custo' },
+      { title: 'Consulte a multa nos canais oficiais', description: 'Detran do estado, Portal SENATRAN ou app Carteira Digital de Trânsito, com login gov.br. Veja os links em "Onde consultar e pagar".', time: '10 min', cost: 'Sem custo' },
+      { title: 'Decida: pagar, indicar ou defender', description: 'Pagar até o vencimento dá 20% de desconto; pelo SNE, 40%, se você abrir mão de defesa e recurso. Indicar o condutor ou apresentar defesa vale até o prazo da notificação.', time: '15–30 min', cost: 'Valor da multa com desconto' },
+      { title: 'Guarde o comprovante e encerre o prazo aqui', description: 'Se chegar uma nova notificação (penalidade ou resultado da defesa), cadastre o próximo prazo: os avisos recomeçam.', time: '5 min', cost: 'Sem custo' },
     ],
   },
   seguro: {
@@ -222,6 +233,8 @@ export default function DocumentoDetalhe() {
   const documentName = document.apelido || LABELS[document.tipo] || document.tipo
 
   // Evento de agenda: só o rótulo e o link do painel. Nada de número de documento.
+  const ehMulta = document.tipo === 'multa'
+  const extraUf = document.extra && typeof document.extra === 'object' && 'uf' in document.extra && typeof document.extra.uf === 'string' ? document.extra.uf : null
   const eventoAgenda = {
     titulo: `Vence: ${documentName}`,
     dataISO: document.data_vencimento,
@@ -358,9 +371,9 @@ export default function DocumentoDetalhe() {
                 <time dateTime={document.data_vencimento}>{formatarDataLonga(document.data_vencimento)}</time>
               </div>
               <Button variant="primary" size="lg" onClick={() => setRenovando(true)} icon={<CheckCircle2 size={18} strokeWidth={1.75} />}>
-                Marcar como renovado
+                {ehMulta ? 'Marcar como resolvida' : 'Marcar como renovado'}
               </Button>
-              {anterior && <p className="detail-countdown__anterior">Renovado de {formatarDataLonga(anterior.data_vencimento)}.</p>}
+              {anterior && <p className="detail-countdown__anterior">{ehMulta ? 'Prazo anterior' : 'Renovado de'} {formatarDataLonga(anterior.data_vencimento)}.</p>}
               <div className="detail-countdown__agenda">
                 <a className="bz-button bz-button--secondary bz-button--md" href={linkGoogleAgenda(eventoAgenda)} target="_blank" rel="noopener noreferrer">
                   <CalendarPlus size={16} strokeWidth={1.75} aria-hidden="true" /><span>Google Agenda</span>
@@ -369,7 +382,9 @@ export default function DocumentoDetalhe() {
               </div>
             </section>
 
-            <OndeRenovar tipo={document.tipo} perfil={perfilEndereco} onCadastrarEndereco={() => setMostrarEndereco(true)} />
+            {ehMulta
+              ? <OndeConsultarMultas uf={extraUf ?? perfilEndereco?.uf} />
+              : <OndeRenovar tipo={document.tipo} perfil={perfilEndereco} onCadastrarEndereco={() => setMostrarEndereco(true)} />}
 
             <section className="detail-panel detail-risk">
               <div className="detail-panel__title">
@@ -410,7 +425,7 @@ export default function DocumentoDetalhe() {
 
           <section className="detail-guide">
             <div className="detail-guide__header">
-              <span className="bz-micro">Roteiro de renovação</span>
+              <span className="bz-micro">{ehMulta ? 'Roteiro da multa' : 'Roteiro de renovação'}</span>
               <h2>Próximos passos para {LABELS[document.tipo] || document.tipo}</h2>
               <p>Use isto como checklist inicial. Regras, taxas e prazos oficiais podem mudar.</p>
             </div>

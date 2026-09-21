@@ -4,6 +4,7 @@ import {
   BellOff,
   BellPlus,
   BellRing,
+  CarFront,
   CircleAlert,
   CheckCircle2,
   Download,
@@ -24,6 +25,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Brand, Button, ThemeToggle } from '../components/ui/Bezel'
 import { EnderecoModal } from '../components/ui/EnderecoModal'
 import { PlanosModal } from '../components/ui/PlanosModal'
+import { VeiculoForm } from '../components/ui/VeiculoForm'
 import { useAuth } from '../hooks/useAuth'
 import { useTheme } from '../hooks/useTheme'
 import { usePlano } from '../hooks/usePlano'
@@ -36,6 +38,7 @@ import { LIMITE_PESSOAS_FAMILIA, WHATSAPP_DISPONIVEL, ehPago, formatarPreco, nor
 import { mascararTelefone } from '../lib/telefone'
 import { ehIosSemPwa, pushSubscriptionSchema, suportaPush, urlBase64ToUint8Array } from '../lib/push'
 import { conviteSchema } from '../lib/validacao'
+import { LIMITE_VEICULOS, formatarPlaca, type Veiculo } from '../lib/veiculos'
 
 interface PerfilConta extends PerfilEndereco {
   nome: string | null
@@ -132,6 +135,8 @@ export default function Conta() {
   const [emailConvite, setEmailConvite] = useState('')
   const [convidando, setConvidando] = useState(false)
   const [avisoFamilia, setAvisoFamilia] = useState<Aviso>(null)
+  const [veiculos, setVeiculos] = useState<Veiculo[]>([])
+  const [avisoVeiculo, setAvisoVeiculo] = useState<Aviso>(null)
 
   const nome = perfil?.nome || user?.user_metadata?.nome || user?.email?.split('@')[0] || 'usuário'
   const email = user?.email ?? perfil?.email ?? ''
@@ -170,6 +175,25 @@ export default function Conta() {
     carregar()
     return () => { cancelled = true }
   }, [user, familiaVersao])
+
+  useEffect(() => {
+    if (!user) return
+    let cancelled = false
+    supabase
+      .from('veiculos')
+      .select('id, placa, uf, apelido')
+      .eq('usuario_id', user.id)
+      .order('criado_em')
+      .then(({ data }) => { if (!cancelled) setVeiculos(data ?? []) })
+    return () => { cancelled = true }
+  }, [user])
+
+  const removerVeiculo = async (veiculo: Veiculo) => {
+    const { error } = await supabase.from('veiculos').delete().eq('id', veiculo.id)
+    if (error) { setAvisoVeiculo({ tipo: 'erro', texto: 'Não foi possível remover agora.' }); return }
+    setVeiculos(atual => atual.filter(item => item.id !== veiculo.id))
+    setAvisoVeiculo({ tipo: 'sucesso', texto: `Placa ${formatarPlaca(veiculo.placa)} removida.` })
+  }
 
   // Link do e-mail de convite: /conta?convite=<token>
   useEffect(() => {
@@ -424,14 +448,16 @@ export default function Conta() {
     if (!user) return
     setExportando(true)
     setAvisoDados(null)
-    const [{ data: documentos }, { data: notificacoes }] = await Promise.all([
+    const [{ data: documentos }, { data: notificacoes }, { data: listaVeiculos }] = await Promise.all([
       supabase.from('documentos').select('*').eq('usuario_id', user.id).order('data_vencimento'),
       supabase.from('notifications').select('*').eq('usuario_id', user.id).order('scheduled_date'),
+      supabase.from('veiculos').select('*').eq('usuario_id', user.id).order('criado_em'),
     ])
     const pacote = {
       exportado_em: new Date().toISOString(),
       conta: { id: user.id, email, criado_em: user.created_at },
       perfil,
+      veiculos: listaVeiculos ?? [],
       documentos: documentos ?? [],
       alertas: notificacoes ?? [],
     }
@@ -485,7 +511,7 @@ export default function Conta() {
             <div className="bz-modal__body detail-delete-dialog">
               <span className="detail-delete-dialog__icon"><Trash2 size={22} strokeWidth={1.75} /></span>
               <h2 id="excluir-conta-title">Excluir sua conta?</h2>
-              <p>Perfil, endereço, documentos e alertas são apagados e o acesso é encerrado. Essa ação não pode ser desfeita. Se quiser guardar uma cópia, exporte seus dados antes.</p>
+              <p>Perfil, endereço, veículos, documentos e alertas são apagados e o acesso é encerrado. Essa ação não pode ser desfeita. Se quiser guardar uma cópia, exporte seus dados antes.</p>
               <div className="bz-modal__actions">
                 <Button variant="secondary" disabled={excluindo} onClick={() => setConfirmandoExclusao(false)}>Cancelar</Button>
                 <Button variant="danger" disabled={excluindo} onClick={excluirConta}>{excluindo ? 'Excluindo…' : 'Excluir conta'}</Button>
@@ -701,6 +727,37 @@ export default function Conta() {
               </Button>
               {temEndereco(perfil) && <Button variant="ghost" size="sm" onClick={removerEndereco}>Remover endereço</Button>}
             </div>
+          </section>
+
+          <section className="detail-panel" aria-labelledby="conta-veiculos">
+            <div className="detail-panel__title">
+              <CarFront size={18} strokeWidth={1.75} />
+              <div>
+                <span className="bz-micro">Veículos · {veiculos.length}/{LIMITE_VEICULOS}</span>
+                <h2 id="conta-veiculos">Meu veículo</h2>
+              </div>
+            </div>
+            <p>Placa e UF alimentam o painel do carro: links oficiais para consultar multas, IPVA e licenciamento, e sugestão de prazos. Opcional.</p>
+            {veiculos.length > 0 && (
+              <ul className="conta-membros">
+                {veiculos.map(veiculo => (
+                  <li key={veiculo.id}>
+                    <strong>{formatarPlaca(veiculo.placa)}</strong>
+                    <span>{veiculo.uf}{veiculo.apelido ? ` · ${veiculo.apelido}` : ''}</span>
+                    <button className="conta-membros__remover" type="button" onClick={() => removerVeiculo(veiculo)} aria-label={`Remover ${formatarPlaca(veiculo.placa)}`}>
+                      <Trash2 size={15} strokeWidth={1.75} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {veiculos.length < LIMITE_VEICULOS ? (
+              <VeiculoForm ufPadrao={perfil?.uf} onSalvo={veiculo => { setVeiculos(atual => [...atual, veiculo]); setAvisoVeiculo({ tipo: 'sucesso', texto: `Placa ${formatarPlaca(veiculo.placa)} cadastrada.` }) }} />
+            ) : (
+              <p>Limite de {LIMITE_VEICULOS} veículos. Remova um para cadastrar outro.</p>
+            )}
+            <Feedback aviso={avisoVeiculo} />
+            <small>Sem consulta automática: o DocLimpo não acessa o Detran nem envia a placa a terceiros. Detalhes na <Link to="/privacidade">política de privacidade</Link>.</small>
           </section>
 
           <section className="detail-panel" aria-labelledby="conta-plano">

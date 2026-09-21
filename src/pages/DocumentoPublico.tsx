@@ -7,13 +7,15 @@ import { DOCUMENTOS_PUBLICOS, documentoPublicoPorSlug } from '../lib/documentos-
 import { JANELAS_ALERTA } from '../lib/planos'
 import NotFound from './NotFound'
 
-const sections = [
-  ['o-que-e', 'O que é'],
-  ['validade', 'Quanto tempo vale'],
-  ['renovar', 'Onde renovar'],
-  ['alertas', 'Como o DocLimpo avisa'],
-  ['perguntas', 'Perguntas'],
-]
+function sectionsDe(rotulos?: { validade?: string; renovar?: string }) {
+  return [
+    ['o-que-e', 'O que é'],
+    ['validade', rotulos?.validade ?? 'Quanto tempo vale'],
+    ['renovar', rotulos?.renovar ?? 'Onde renovar'],
+    ['alertas', 'Como o DocLimpo avisa'],
+    ['perguntas', 'Perguntas'],
+  ]
+}
 
 // Página pública por tipo de documento (/documentos/<tipo>): conteúdo
 // estático de src/lib/documentos-publicos.ts, sem backend. Slug desconhecido
@@ -24,6 +26,7 @@ export default function DocumentoPublico() {
   if (!documento) return <NotFound />
 
   const outros = DOCUMENTOS_PUBLICOS.filter(item => item.slug !== documento.slug).slice(0, 4)
+  const sections = sectionsDe(documento.rotulos)
 
   return (
     <PublicShell>
@@ -31,10 +34,10 @@ export default function DocumentoPublico() {
         <DocumentGlyph type={documento.slug} size="lg" />
         <div>
           <span className="bz-micro">Guia · <Link to="/documentos">Documentos</Link></span>
-          <h1>{documento.nome}: validade, renovação e alerta de vencimento.</h1>
+          <h1>{documento.h1 ?? `${documento.nome}: validade, renovação e alerta de vencimento.`}</h1>
           <p>{documento.descricao}</p>
           <div className="outcome-actions">
-            <ActionLink to={`/cadastro?documento=${documento.slug}`} variant="primary" size="lg">Acompanhar meu {documento.nome.split(' ')[0]}<ArrowRight size={17} aria-hidden="true" /></ActionLink>
+            <ActionLink to={`/cadastro?documento=${documento.slug}`} variant="primary" size="lg">{documento.cta ?? `Acompanhar meu ${documento.nome.split(' ')[0]}`}<ArrowRight size={17} aria-hidden="true" /></ActionLink>
           </div>
         </div>
       </header>
@@ -45,10 +48,17 @@ export default function DocumentoPublico() {
         </nav>
         <article className="privacy-body">
           <section id="o-que-e"><h2>01. O que é</h2><p>{documento.oQueE}</p></section>
-          <section id="validade"><h2>02. Quanto tempo vale</h2><p>{documento.validade}</p><p><small>Prazos e regras podem mudar. Confira no órgão responsável antes de contar com a data.</small></p></section>
+          <section id="validade"><h2>02. {sections[1][1]}</h2><p>{documento.validade}</p><p><small>Prazos e regras podem mudar. Confira no órgão responsável antes de contar com a data.</small></p></section>
           <section id="renovar">
-            <h2>03. Onde renovar</h2>
+            <h2>03. {sections[2][1]}</h2>
             <p>{documento.comoRenovar}</p>
+            {documento.links && (
+              <ul className="documento-publico__links">
+                {documento.links.map(fonte => (
+                  <li key={fonte.url}><a href={fonte.url} target="_blank" rel="noopener noreferrer">{fonte.rotulo}<ExternalLink size={12} strokeWidth={1.75} aria-hidden="true" /></a>{fonte.observacao && <small> {fonte.observacao}</small>}</li>
+                ))}
+              </ul>
+            )}
             <dl>
               <dt>Responsável</dt>
               <dd>{documento.autoridade.orgao}</dd>
@@ -61,7 +71,7 @@ export default function DocumentoPublico() {
           <section id="alertas">
             <h2>04. Como o DocLimpo avisa</h2>
             <p>Você cadastra o tipo e a data de vencimento (sem foto, sem número do documento). O DocLimpo envia um e-mail {JANELAS_ALERTA.join(', ')} dias antes e, nos planos pagos, também uma notificação no navegador. Na tela do documento você vê onde renovar e pode marcar como renovado com o próximo prazo.</p>
-            <p>O DocLimpo não renova documentos, não paga taxas e não consulta órgãos públicos: a data informada por você é a referência.</p>
+            <p>O DocLimpo não renova documentos, não paga taxas nem multas e não consulta órgãos públicos: a data informada por você é a referência.</p>
           </section>
           <section id="perguntas">
             <h2>05. Perguntas</h2>

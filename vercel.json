@@ -113,6 +113,10 @@
       "dest": "/documentos/exame/index.html"
     },
     {
+      "src": "/documentos/multa/?",
+      "dest": "/documentos/multa/index.html"
+    },
+    {
       "src": "/404(?:\\.html)?/?",
       "dest": "/404.html",
       "status": 404

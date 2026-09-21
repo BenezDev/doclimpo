@@ -9,6 +9,7 @@ export const LABELS: Record<string, string> = {
   cnh: "CNH",
   crlv: "CRLV",
   ipva: "IPVA",
+  multa: "prazo da multa",
   passaporte: "Passaporte",
   rg: "RG",
   seguro: "Seguro auto",

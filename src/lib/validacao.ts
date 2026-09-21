@@ -1,11 +1,13 @@
 import { z } from 'zod'
+import { ehUf } from './calendario-veicular.ts'
+import { normalizarPlaca, placaValida } from './veiculos.ts'
 
 // Espelho, no cliente, das regras que o banco impõe (ver migration
 // 20260911120000_seguranca_constraints.sql). O banco é a autoridade; isto é
 // UX + defesa em profundidade. Lógica pura, testável com node:test.
 
 export const TIPOS_DOCUMENTO = [
-  'cnh', 'crlv', 'ipva', 'passaporte', 'rg', 'seguro', 'plano_saude', 'carteira_trabalho',
+  'cnh', 'crlv', 'ipva', 'multa', 'passaporte', 'rg', 'seguro', 'plano_saude', 'carteira_trabalho',
   'garantia', 'contrato', 'exame',
   'alvara', 'certidao', 'das_mei', 'outro',
 ] as const
@@ -56,5 +58,14 @@ export const enderecoSchema = z.object({
   uf: z.string().trim().length(2, 'UF deve ter 2 letras.'),
 })
 
+// Veículo do painel do carro (tabela veiculos). A placa entra como o usuário
+// digitou e sai normalizada, igual ao CHECK do banco.
+export const veiculoSchema = z.object({
+  placa: z.string().transform(normalizarPlaca).refine(placaValida, 'Placa inválida. Use ABC1D23 (Mercosul) ou ABC-1234.'),
+  uf: z.string().trim().toUpperCase().refine(ehUf, 'Escolha a UF do veículo.'),
+  apelido: z.string().trim().max(60, 'Apelido muito longo (máx. 60 caracteres).').optional(),
+})
+
 export type DocumentoInput = z.infer<typeof documentoSchema>
+export type VeiculoInput = z.infer<typeof veiculoSchema>
 export type EnderecoInput = z.infer<typeof enderecoSchema>

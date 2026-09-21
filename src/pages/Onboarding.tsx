@@ -17,6 +17,7 @@ const TIPOS = [
   { id: 'cnh', label: 'CNH', description: 'Carteira de motorista' },
   { id: 'crlv', label: 'CRLV', description: 'Documento do veículo' },
   { id: 'ipva', label: 'IPVA', description: 'Imposto do veículo' },
+  { id: 'multa', label: 'Multa de trânsito', description: 'Defesa, desconto ou recurso' },
   { id: 'passaporte', label: 'Passaporte', description: 'Documento de viagem' },
   { id: 'rg', label: 'RG', description: 'Identidade' },
   { id: 'seguro', label: 'Seguro auto', description: 'Apólice do veículo' },

@@ -13,6 +13,7 @@ import {
   Plane,
   ReceiptText,
   ShieldCheck,
+  Siren,
   Stethoscope,
   Sun,
 } from 'lucide-react'
@@ -91,6 +92,7 @@ const documentIcons = {
   cnh: IdCard,
   crlv: CarFront,
   ipva: ReceiptText,
+  multa: Siren,
   passaporte: Plane,
   rg: IdCard,
   seguro: ShieldCheck,

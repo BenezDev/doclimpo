@@ -40,6 +40,9 @@ test('autoridadePara mapeia documento -> órgão, com privados marcados', () => 
   assert.equal(autoridadePara('seguro').privado, true)
   assert.equal(autoridadePara('plano_saude').privado, true)
   for (const tipo of ['garantia', 'contrato', 'exame']) assert.equal(autoridadePara(tipo).privado, true, tipo)
+  // Multa é 100% online: sem unidade física, com o portal nacional.
+  assert.equal(autoridadePara('multa').privado, true)
+  assert.match(autoridadePara('multa').portalUrl ?? '', /^https:\/\/portalservicos\.senatran\.serpro\.gov\.br\//)
   assert.equal(autoridadePara('desconhecido').orgao, autoridadePara('outro').orgao)
 })
 

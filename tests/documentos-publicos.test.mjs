@@ -4,8 +4,8 @@ import { DOCUMENTOS_PUBLICOS, documentoPublicoPorSlug } from '../src/lib/documen
 import { documentIntent } from '../src/lib/public-content.ts'
 import { publicPages } from '../src/lib/page-meta.ts'
 
-test('11 documentos pessoais com título e descrição únicos e sem caracteres que o build escapa', () => {
-  assert.equal(DOCUMENTOS_PUBLICOS.length, 11)
+test('12 documentos pessoais com título e descrição únicos e sem caracteres que o build escapa', () => {
+  assert.equal(DOCUMENTOS_PUBLICOS.length, 12)
   const descricoes = new Set(DOCUMENTOS_PUBLICOS.map(item => item.descricao))
   assert.equal(descricoes.size, DOCUMENTOS_PUBLICOS.length)
   for (const item of DOCUMENTOS_PUBLICOS) {
@@ -18,4 +18,10 @@ test('11 documentos pessoais com título e descrição únicos e sem caracteres 
   }
   assert.equal(documentoPublicoPorSlug('cnh')?.autoridade.orgao, 'Detran')
   assert.equal(documentoPublicoPorSlug('xyz'), null)
+  // Multa: cabeçalho próprio (não é "validade/renovação") e canais oficiais fixos.
+  const multa = documentoPublicoPorSlug('multa')
+  assert.match(multa?.h1 ?? '', /^Multa de trânsito/)
+  assert.equal(multa?.rotulos?.renovar, 'Onde consultar e pagar')
+  assert.ok((multa?.links?.length ?? 0) >= 2)
+  for (const fonte of multa?.links ?? []) assert.match(fonte.url, /^https:\/\/[a-z0-9.-]+\.gov\.br\//)
 })

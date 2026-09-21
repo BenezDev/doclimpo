@@ -31,8 +31,8 @@ test('enderecoSchema exige cidade+UF e limita tamanhos', () => {
   assert.equal(enderecoSchema.safeParse({ cidade: 'x'.repeat(81), uf: 'SP' }).success, false)
 })
 
-test('TIPOS_DOCUMENTO cobre os 12 tipos pessoais + 3 empresariais do plano MEI', () => {
-  assert.equal(TIPOS_DOCUMENTO.length, 15)
-  for (const tipo of ['cnh', 'outro', 'garantia', 'contrato', 'exame', 'alvara', 'certidao', 'das_mei']) assert.ok(TIPOS_DOCUMENTO.includes(tipo), tipo)
+test('TIPOS_DOCUMENTO cobre os 13 tipos pessoais + 3 empresariais do plano MEI', () => {
+  assert.equal(TIPOS_DOCUMENTO.length, 16)
+  for (const tipo of ['cnh', 'multa', 'outro', 'garantia', 'contrato', 'exame', 'alvara', 'certidao', 'das_mei']) assert.ok(TIPOS_DOCUMENTO.includes(tipo), tipo)
   assert.equal(documentoSchema.safeParse({ tipo: 'das_mei', data_vencimento: '2026-12-20' }).success, true)
 })
