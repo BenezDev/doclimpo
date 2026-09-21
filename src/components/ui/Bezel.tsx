@@ -4,13 +4,16 @@ import {
   BriefcaseBusiness,
   CarFront,
   FileCheck2,
+  FileSignature,
   FileText,
   HeartPulse,
   IdCard,
   Moon,
+  PackageCheck,
   Plane,
   ReceiptText,
   ShieldCheck,
+  Stethoscope,
   Sun,
 } from 'lucide-react'
 
@@ -93,6 +96,9 @@ const documentIcons = {
   seguro: ShieldCheck,
   plano_saude: HeartPulse,
   carteira_trabalho: BriefcaseBusiness,
+  garantia: PackageCheck,
+  contrato: FileSignature,
+  exame: Stethoscope,
   outro: FileText,
 }
 

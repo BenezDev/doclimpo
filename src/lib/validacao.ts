@@ -6,6 +6,7 @@ import { z } from 'zod'
 
 export const TIPOS_DOCUMENTO = [
   'cnh', 'crlv', 'ipva', 'passaporte', 'rg', 'seguro', 'plano_saude', 'carteira_trabalho',
+  'garantia', 'contrato', 'exame',
   'alvara', 'certidao', 'das_mei', 'outro',
 ] as const
 

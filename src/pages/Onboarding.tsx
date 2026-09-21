@@ -21,6 +21,9 @@ const TIPOS = [
   { id: 'seguro', label: 'Seguro auto', description: 'Apólice do veículo' },
   { id: 'plano_saude', label: 'Plano de saúde', description: 'Plano médico' },
   { id: 'carteira_trabalho', label: 'Carteira de trabalho', description: 'CTPS' },
+  { id: 'garantia', label: 'Garantia', description: 'Produto ou serviço' },
+  { id: 'contrato', label: 'Contrato', description: 'Aluguel ou prestação' },
+  { id: 'exame', label: 'Exame periódico', description: 'ASO ou atestado' },
   { id: 'outro', label: 'Outro', description: 'Outro documento' },
 ]
 

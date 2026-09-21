@@ -11,6 +11,9 @@ export type TipoDocumento =
   | 'seguro'
   | 'plano_saude'
   | 'carteira_trabalho'
+  | 'garantia'
+  | 'contrato'
+  | 'exame'
   | 'alvara'
   | 'certidao'
   | 'das_mei'
@@ -108,6 +111,27 @@ const AUTORIDADES: Record<TipoDocumento, Autoridade> = {
     termoBusca: '',
     portalUrl: 'https://www.gov.br/empresas-e-negocios/pt-br/empreendedor',
     observacao: 'O DAS do MEI é emitido e pago online no Portal do Empreendedor ou no app MEI.',
+  },
+  garantia: {
+    rede: null,
+    orgao: 'Loja ou fabricante',
+    privado: true,
+    termoBusca: '',
+    observacao: 'A garantia é acionada com a loja ou o fabricante. Guarde a nota fiscal e o termo de garantia; o Código de Defesa do Consumidor garante 30 dias (bens não duráveis) ou 90 dias (duráveis) além do prazo contratual.',
+  },
+  contrato: {
+    rede: null,
+    orgao: 'A outra parte do contrato',
+    privado: true,
+    termoBusca: '',
+    observacao: 'Renovação, reajuste ou encerramento são combinados com a outra parte (locador, imobiliária, prestador). Confira o prazo de aviso prévio no contrato.',
+  },
+  exame: {
+    rede: null,
+    orgao: 'Clínica ou serviço de saúde ocupacional',
+    privado: true,
+    termoBusca: '',
+    observacao: 'Exames periódicos e o ASO são agendados com a clínica indicada pela empresa ou pelo seu médico.',
   },
   outro: {
     rede: null,
