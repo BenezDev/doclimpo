@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 // Cria na Cakto os três produtos de assinatura do DocLimpo (um por plano, com
 // oferta mensal recorrente) e o webhook que aponta para a Edge Function
-// cakto-webhook. No fim imprime o comando para gravar os segredos no Supabase.
-// Idempotente: produto com o mesmo nome e webhook com a mesma URL são
-// reaproveitados, e a oferta é reajustada para o preço do catálogo.
+// cakto-webhook. No fim grava os segredos no Supabase (com SUPABASE_ACCESS_TOKEN)
+// ou imprime o comando para gravá-los. Idempotente: produto com o mesmo nome e
+// webhook com a mesma URL são reaproveitados, e a oferta é reajustada para o
+// preço do catálogo. --novo-segredo recria o webhook para trocar o segredo.
 //
 // As chaves ficam só no seu shell — nunca no repositório:
 //   CAKTO_CLIENT_ID=... CAKTO_CLIENT_SECRET=... node scripts/cakto-provisionar.mjs              # mostra o que faria
@@ -20,9 +21,10 @@ const PROJETO = 'zgpixmunvgnwgzzfwpjg'
 const APP_URL = process.env.APP_URL ?? 'https://www.doclimpo.com'
 const WEBHOOK_URL = process.env.CAKTO_WEBHOOK_URL ?? `https://${PROJETO}.supabase.co/functions/v1/cakto-webhook`
 const CONFIRMAR = process.argv.includes('--confirmar')
+const NOVO_SEGREDO = process.argv.includes('--novo-segredo')
 const ENV_DO_PLANO = { INDIVIDUAL: 'CAKTO_OFFER_INDIVIDUAL', FAMILIAR: 'CAKTO_OFFER_FAMILIAR', MEI: 'CAKTO_OFFER_MEI' }
 
-const { CAKTO_CLIENT_ID, CAKTO_CLIENT_SECRET } = process.env
+const { CAKTO_CLIENT_ID, CAKTO_CLIENT_SECRET, SUPABASE_ACCESS_TOKEN } = process.env
 if (!CAKTO_CLIENT_ID || !CAKTO_CLIENT_SECRET) {
   console.error('Defina CAKTO_CLIENT_ID e CAKTO_CLIENT_SECRET no ambiente (painel Cakto → Integrações → Cakto API).')
   process.exit(1)
@@ -113,6 +115,12 @@ for (const plano of PLANOS) {
 const webhooks = await listarTudo('/webhook/')
 let webhook = webhooks.find(w => w.url === WEBHOOK_URL)
 const configWebhook = { name: 'DocLimpo', url: WEBHOOK_URL, products: produtosIds, events: [...EVENTOS_TRATADOS] }
+// O segredo nasce com o webhook: para trocá-lo (ex.: vazou), apaga e recria.
+if (webhook && NOVO_SEGREDO) {
+  console.log(`\n• Webhook ${webhook.id}: apagar para gerar segredo novo`)
+  if (CONFIRMAR) await api('DELETE', `/webhook/${webhook.id}/`)
+  webhook = null
+}
 if (!webhook) {
   console.log(`\n• Webhook → ${WEBHOOK_URL}: criar (${EVENTOS_TRATADOS.size} eventos)`)
   if (CONFIRMAR) webhook = await api('POST', '/webhook/', configWebhook)
@@ -129,6 +137,20 @@ if (!CONFIRMAR) {
 const segredoWebhook = webhook?.fields?.secret
 if (segredoWebhook) segredos.CAKTO_WEBHOOK_SECRET = segredoWebhook
 else console.log(`\nNão achei o segredo em webhook.fields (${JSON.stringify(Object.keys(webhook?.fields ?? {}))}). Copie-o do painel da Cakto (Integrações → Webhooks).`)
+
+// Com um token pessoal do Supabase (supabase.com/dashboard/account/tokens), os
+// segredos vão direto para as Edge Functions e nenhum valor aparece na tela.
+if (SUPABASE_ACCESS_TOKEN) {
+  const lista = Object.entries({ ...segredos, CAKTO_CLIENT_ID, CAKTO_CLIENT_SECRET }).map(([name, value]) => ({ name, value }))
+  const resposta = await fetch(`https://api.supabase.com/v1/projects/${PROJETO}/secrets`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${SUPABASE_ACCESS_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(lista),
+  })
+  if (!resposta.ok) throw new Error(`Supabase secrets: HTTP ${resposta.status} ${await resposta.text()}`)
+  console.log(`\nSegredos gravados no Supabase: ${lista.map(s => s.name).join(', ')}.`)
+  process.exit(0)
+}
 
 console.log('\nGrave os segredos nas Edge Functions (o client_id/secret são os mesmos desta execução):\n')
 console.log(`supabase secrets set --project-ref ${PROJETO} \\`)
