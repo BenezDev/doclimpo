@@ -1,7 +1,7 @@
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { corsHeaders } from "../_shared/cors.ts";
-import { origemPermitida, priceDoPlano } from "../_shared/stripe-eventos.ts";
+import { assinaturaAtiva, origemPermitida, priceDoPlano } from "../_shared/stripe-eventos.ts";
 
 // Abre o Checkout do Stripe para um plano. O cliente manda só o slug do plano
 // (individual | familia | mei); o price é resolvido aqui pelas variáveis de
@@ -47,15 +47,16 @@ Deno.serve(async (req) => {
       if (!existente || existente.deleted || existente.metadata?.user_id !== user.id) customerId = null;
     }
     if (!customerId) {
-      const criado = await stripe.customers.create({ email: user.email, metadata: { user_id: user.id } });
+      const criado = await stripe.customers.create({ email: user.email, preferred_locales: ["pt-BR"], metadata: { user_id: user.id } });
       customerId = criado.id;
       await admin.from("profiles").update({ stripe_customer_id: customerId }).eq("user_id", user.id);
     }
 
-    // Quem já paga troca de plano pelo portal; um segundo Checkout criaria
-    // uma segunda assinatura e cobraria em dobro.
-    const ativas = await stripe.subscriptions.list({ customer: customerId, status: "active", limit: 1 });
-    if (ativas.data.length > 0) {
+    // Quem já paga (ou está em trial/past_due, que ainda dão acesso) troca de
+    // plano ou atualiza o cartão pelo portal; um segundo Checkout criaria uma
+    // segunda assinatura e cobraria em dobro.
+    const existentes = await stripe.subscriptions.list({ customer: customerId, status: "all", limit: 10 });
+    if (existentes.data.some((s) => assinaturaAtiva(s.status))) {
       return responder({ error: "Você já tem uma assinatura ativa. Use \"Gerenciar assinatura\" na sua conta para trocar de plano." }, 409);
     }
 

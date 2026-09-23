@@ -82,6 +82,9 @@ test('fatura: paga grava amount_paid como PAID; falha grava amount_due como FAIL
   assert.equal(falhou.valor, 29.89)
   assert.equal(falhou.stripeSubscriptionId, null)
   assert.equal(falhou.urlFatura, null)
+  // API basil (2025-03-31+): a assinatura vem em parent.subscription_details.
+  const basil = resumirFatura({ id: 'in_3', customer: 'cus_1', amount_paid: 1989, parent: { subscription_details: { subscription: 'sub_2' } } }, 'invoice.paid')
+  assert.equal(basil.stripeSubscriptionId, 'sub_2')
 })
 
 test('redirecionamentos do Checkout só para o app ou o dev local (sem open redirect)', () => {

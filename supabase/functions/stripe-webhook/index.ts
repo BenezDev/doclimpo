@@ -1,6 +1,7 @@
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import {
+  assinaturaAtiva,
   mapaDePrecos,
   resumirAssinatura,
   resumirFatura,
@@ -112,8 +113,9 @@ async function aplicarAssinatura(
   // antiga não pode rebaixar quem ainda tem outra ativa.
   let efetivo = resumo;
   if (!resumo.ativa) {
-    const ativas = await stripe.subscriptions.list({ customer: resumo.stripeCustomerId, status: "active", limit: 1 });
-    if (ativas.data.length > 0) efetivo = resumirAssinatura(ativas.data[0] as unknown as AssinaturaStripe, mapa);
+    const todas = await stripe.subscriptions.list({ customer: resumo.stripeCustomerId, status: "all", limit: 10 });
+    const outra = todas.data.find((s) => s.id !== resumo.stripeSubscriptionId && assinaturaAtiva(s.status));
+    if (outra) efetivo = resumirAssinatura(outra as unknown as AssinaturaStripe, mapa);
   }
 
   const { error: erroPerfil } = await supabase

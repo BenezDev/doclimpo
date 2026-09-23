@@ -118,7 +118,10 @@ export interface FaturaStripe {
   currency?: string;
   status?: string | null;
   hosted_invoice_url?: string | null;
+  // Até a API 2025-02 a assinatura vinha em `subscription`; a partir da basil
+  // (2025-03-31) vem em `parent.subscription_details.subscription`.
   subscription?: string | { id: string } | null;
+  parent?: { subscription_details?: { subscription?: string | { id: string } | null } | null } | null;
 }
 
 export interface ResumoFatura {
@@ -134,7 +137,7 @@ export interface ResumoFatura {
 export function resumirFatura(invoice: FaturaStripe, evento: "invoice.paid" | "invoice.payment_failed"): ResumoFatura {
   const pago = evento === "invoice.paid";
   const centavos = pago ? invoice.amount_paid ?? 0 : invoice.amount_due ?? 0;
-  const assinatura = invoice.subscription;
+  const assinatura = invoice.subscription ?? invoice.parent?.subscription_details?.subscription;
   return {
     stripePaymentId: invoice.id,
     stripeCustomerId: typeof invoice.customer === "string" ? invoice.customer : invoice.customer.id,
