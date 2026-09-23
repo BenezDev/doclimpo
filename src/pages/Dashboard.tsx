@@ -32,7 +32,7 @@ import { useTheme } from '../hooks/useTheme'
 import { supabase } from '../integrations/supabase/client'
 import { precisaPedirEndereco, type PerfilEndereco } from '../lib/endereco'
 import { linksConsultaMultas } from '../lib/multas'
-import { podeAdicionarDocumento, rotuloPlano } from '../lib/planos'
+import { ehPago, podeAdicionarDocumento, rotuloPlano } from '../lib/planos'
 import { LIMITE_VEICULOS, formatarPlaca, type Veiculo } from '../lib/veiculos'
 import { diasRestantes, formatarData, statusPorDias } from '../lib/datas'
 import { bezelSpring, stagger } from '../lib/motion'
@@ -77,7 +77,7 @@ export default function Dashboard() {
   const { dark, toggleTheme } = useTheme()
   const reduceMotion = useReducedMotion()
   const navigate = useNavigate()
-  const { search } = useLocation()
+  const { search, state: estadoNavegacao } = useLocation()
   const [docs, setDocs] = useState<Documento[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
@@ -92,7 +92,7 @@ export default function Dashboard() {
   const [mostrarEndereco, setMostrarEndereco] = useState(false)
   const { plano, recarregar: recarregarPlano } = usePlano()
   const [mostrarPlanos, setMostrarPlanos] = useState(false)
-  const [avisoCheckout, setAvisoCheckout] = useState<{ tipo: 'sucesso' | 'neutro'; texto: string } | null>(null)
+  const [confirmacaoAtrasada, setConfirmacaoAtrasada] = useState(false)
   const [enderecoAdiado, setEnderecoAdiado] = useState(() => {
     try { return localStorage.getItem('doclimpo-endereco-adiado') === '1' } catch { return false }
   })
@@ -166,26 +166,34 @@ export default function Dashboard() {
     return () => { cancelled = true }
   }, [user])
 
-  // Volta do Checkout do Stripe: sincroniza o plano na hora (o webhook é a
-  // fonte contínua; isto cobre a janela até o evento chegar) e limpa a URL.
+  // Volta do checkout da Cakto (redirect pós-pagamento: /dashboard?checkout=<token>).
+  // Quem confirma o pagamento é o webhook, em geral em segundos; aqui só
+  // recarregamos o plano até ele chegar. O token da URL não vale como prova e
+  // sai da barra de endereço na hora.
   useEffect(() => {
-    const resultado = new URLSearchParams(search).get('checkout')
-    if (!resultado) return
-    let cancelled = false
-    const concluir = async () => {
-      if (resultado === 'success') {
-        await supabase.functions.invoke('check-subscription', { body: {} }).catch(() => null)
-        if (cancelled) return
-        recarregarPlano()
-        setAvisoCheckout({ tipo: 'sucesso', texto: 'Assinatura ativa. Seus documentos agora são ilimitados.' })
-      } else if (resultado === 'canceled') {
-        setAvisoCheckout({ tipo: 'neutro', texto: 'Pagamento não concluído. Seu plano continua o mesmo.' })
-      }
-      navigate('/dashboard', { replace: true })
-    }
-    concluir()
-    return () => { cancelled = true }
-  }, [search, navigate, recarregarPlano])
+    if (new URLSearchParams(search).get('checkout')) navigate('/dashboard', { replace: true, state: { voltaDoCheckout: true } })
+  }, [search, navigate])
+
+  const voltaDoCheckout = (estadoNavegacao as { voltaDoCheckout?: boolean } | null)?.voltaDoCheckout === true
+  const aguardandoPlano = voltaDoCheckout && !ehPago(plano)
+
+  useEffect(() => {
+    if (!aguardandoPlano) return
+    let tentativas = 0
+    const intervalo = window.setInterval(() => {
+      tentativas += 1
+      recarregarPlano()
+      if (tentativas < 10) return
+      window.clearInterval(intervalo)
+      setConfirmacaoAtrasada(true)
+    }, 3000)
+    return () => window.clearInterval(intervalo)
+  }, [aguardandoPlano, recarregarPlano])
+
+  const avisoCheckout = !voltaDoCheckout ? null
+    : ehPago(plano) ? { tipo: 'sucesso', texto: 'Assinatura ativa. Seus documentos agora são ilimitados.' }
+    : confirmacaoAtrasada ? { tipo: 'neutro', texto: 'A confirmação da Cakto ainda não chegou. Pagamentos por Pix podem levar alguns minutos; recarregue a página daqui a pouco.' }
+    : { tipo: 'neutro', texto: 'Pagamento enviado. Seu plano é liberado assim que a Cakto confirmar — costuma levar poucos segundos.' }
 
   const documentsWithDays = useMemo(() => docs.map(document => ({
     ...document,

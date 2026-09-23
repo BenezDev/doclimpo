@@ -34,7 +34,7 @@ import { validateNewPassword } from '../lib/access-flow'
 import { codigoSchema, telefoneSchema } from '../lib/validacao'
 import { resumoEndereco, temEndereco, type PerfilEndereco } from '../lib/endereco'
 import { bezelSpring } from '../lib/motion'
-import { LIMITE_PESSOAS_FAMILIA, WHATSAPP_DISPONIVEL, ehPago, formatarPreco, normalizarPlano, planoPorId, rotuloPlano, urlStripeSegura } from '../lib/planos'
+import { LIMITE_PESSOAS_FAMILIA, WHATSAPP_DISPONIVEL, ehPago, formatarPreco, normalizarPlano, planoPorId, rotuloPlano } from '../lib/planos'
 import { mascararTelefone } from '../lib/telefone'
 import { ehIosSemPwa, pushSubscriptionSchema, suportaPush, urlBase64ToUint8Array } from '../lib/push'
 import { conviteSchema } from '../lib/validacao'
@@ -130,7 +130,8 @@ export default function Conta() {
   const [membros, setMembros] = useState<Membro[]>([])
   const [familiaVersao, setFamiliaVersao] = useState(0)
   const [mostrarPlanos, setMostrarPlanos] = useState(false)
-  const [abrindoPortal, setAbrindoPortal] = useState(false)
+  const [confirmandoCancelamento, setConfirmandoCancelamento] = useState(false)
+  const [cancelando, setCancelando] = useState(false)
   const [avisoPlano, setAvisoPlano] = useState<Aviso>(null)
   const [emailConvite, setEmailConvite] = useState('')
   const [convidando, setConvidando] = useState(false)
@@ -215,17 +216,19 @@ export default function Conta() {
     return () => { cancelled = true }
   }, [search, user, navigate, recarregarPlano])
 
-  const abrirPortal = async () => {
-    setAbrindoPortal(true)
+  const cancelarAssinatura = async () => {
+    setCancelando(true)
     setAvisoPlano(null)
-    const { data, error } = await supabase.functions.invoke<{ url?: string }>('customer-portal', { body: {} })
-    const destino = urlStripeSegura(data?.url)
-    if (error || !destino) {
-      setAbrindoPortal(false)
-      setAvisoPlano({ tipo: 'erro', texto: await mensagemDaFuncao(error, 'Não foi possível abrir o portal agora.') })
+    const { error } = await supabase.functions.invoke('cancelar-assinatura', { body: {} })
+    setCancelando(false)
+    setConfirmandoCancelamento(false)
+    if (error) {
+      setAvisoPlano({ tipo: 'erro', texto: await mensagemDaFuncao(error, 'Não foi possível cancelar agora. Tente de novo em instantes.') })
       return
     }
-    window.location.assign(destino)
+    setPerfil(atual => atual ? { ...atual, plan_type: 'FREE' } : atual)
+    recarregarPlano()
+    setAvisoPlano({ tipo: 'sucesso', texto: 'Assinatura cancelada. Não haverá novas cobranças e a conta voltou ao plano gratuito.' })
   }
 
   const convidar = async (event: React.FormEvent) => {
@@ -495,6 +498,30 @@ export default function Conta() {
           onClose={() => setMostrarEndereco(false)}
           onSaved={(endereco) => { setPerfil(atual => atual ? { ...atual, ...endereco } : atual); setMostrarEndereco(false) }}
         />
+      )}
+
+      {confirmandoCancelamento && (
+        <div className="bz-modal-layer" onMouseDown={event => event.target === event.currentTarget && !cancelando && setConfirmandoCancelamento(false)}>
+          <motion.div
+            className="bz-modal bz-modal--compact"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="cancelar-assinatura-title"
+            initial={reduceMotion ? undefined : { opacity: 0, scale: 0.96 }}
+            animate={reduceMotion ? undefined : { opacity: 1, scale: 1 }}
+            transition={reduceMotion ? undefined : bezelSpring}
+          >
+            <div className="bz-modal__body detail-delete-dialog">
+              <span className="detail-delete-dialog__icon"><WalletCards size={22} strokeWidth={1.75} /></span>
+              <h2 id="cancelar-assinatura-title">Cancelar a assinatura?</h2>
+              <p>O cancelamento vale na hora: não há novas cobranças e a conta volta ao plano gratuito, que monitora 1 documento. Seus documentos continuam salvos.{plano === 'FAMILIAR' ? ' As pessoas da sua família também deixam de ter o plano.' : ''}</p>
+              <div className="bz-modal__actions">
+                <Button variant="secondary" disabled={cancelando} onClick={() => setConfirmandoCancelamento(false)}>Manter plano</Button>
+                <Button variant="danger" disabled={cancelando} onClick={cancelarAssinatura}>{cancelando ? 'Cancelando…' : 'Cancelar assinatura'}</Button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
       )}
 
       {confirmandoExclusao && (
@@ -771,7 +798,7 @@ export default function Conta() {
             {planoHerdado ? (
               <p>Plano herdado da família{familia?.titularNome ? ` de ${familia.titularNome}` : ''}: documentos ilimitados enquanto você fizer parte dela.</p>
             ) : planoProprioPago ? (
-              <p>Documentos ilimitados, alertas por e-mail e notificações no navegador, guia de renovação. Cartão, faturas e cancelamento ficam no portal de cobrança.</p>
+              <p>Documentos ilimitados, alertas por e-mail e notificações no navegador, guia de renovação. Cobrança mensal pela Cakto; os recibos chegam por e-mail.</p>
             ) : (
               <p>Um documento monitorado, alertas por e-mail e guia de renovação. Sem cartão. Para acompanhar mais documentos e receber notificações no navegador, assine um plano.</p>
             )}
@@ -780,8 +807,8 @@ export default function Conta() {
               {planoHerdado ? (
                 <Button variant="ghost" size="sm" onClick={sairDaFamilia} icon={<UserMinus size={15} strokeWidth={1.75} />}>Sair da família</Button>
               ) : planoProprioPago ? (
-                <Button variant="secondary" size="sm" disabled={abrindoPortal} onClick={abrirPortal} icon={<WalletCards size={15} strokeWidth={1.75} />}>
-                  {abrindoPortal ? 'Abrindo…' : 'Gerenciar assinatura'}
+                <Button variant="secondary" size="sm" onClick={() => setConfirmandoCancelamento(true)} icon={<WalletCards size={15} strokeWidth={1.75} />}>
+                  Cancelar assinatura
                 </Button>
               ) : (
                 <Button variant="primary" size="sm" onClick={() => setMostrarPlanos(true)}>Ver planos</Button>

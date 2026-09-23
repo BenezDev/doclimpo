@@ -36,7 +36,7 @@ conveniência; quem realmente decide quem vê o quê é o banco.
    (`supabase/functions/_shared/html.ts`). No front, nunca use `dangerouslySetInnerHTML` com
    dado do usuário (o React já escapa por padrão — mantenha assim).
 
-5. **Segredos só no servidor.** `service_role`, `STRIPE_SECRET_KEY`, `RESEND_API_KEY`,
+5. **Segredos só no servidor.** `service_role`, `CAKTO_CLIENT_SECRET`, `CAKTO_WEBHOOK_SECRET`, `RESEND_API_KEY`,
    `CRON_SECRET` só nas variáveis das Edge Functions. No front, **apenas** valores `VITE_`
    (a anon key é pública por design — o RLS é o que protege). `.env` fica no `.gitignore`.
    Na menor suspeita de vazamento, **rotacione a chave**.
@@ -53,15 +53,18 @@ conveniência; quem realmente decide quem vê o quê é o banco.
    externo novo, **adicione-o explicitamente** à diretiva certa (`connect-src`/`script-src`/…),
    nunca afrouxe para `*`. `frame-ancestors 'none'` + `X-Frame-Options: DENY` barram clickjacking.
 
-9. **Plano e cobrança só pelo servidor.** `profiles.plan_type` e `stripe_customer_id` são
-   escritos apenas por `stripe-webhook` (assinatura `stripe-signature` verificada, idempotente
-   por `event.id` em `stripe_events`) e `check-subscription`; a trigger
-   `protect_billing_columns` recusa qualquer escrita vinda de `authenticated`/`anon`. O cliente
-   nunca escolhe um `price` — manda só o slug do plano, e `create-checkout` resolve o price
-   pelas variáveis `STRIPE_PRICE_*`. O limite de documentos é decidido por
-   `enforce_plan_limits` (banco) a partir de `plano_efetivo()`; o gate do front
-   (`podeAdicionarDocumento`) é só experiência. Redirecionamentos do Checkout/Portal passam por
-   `origemPermitida` (allowlist), nunca refletem a origem do request. Convites de família
+9. **Plano e cobrança só pelo servidor.** `profiles.plan_type`, `subscriptions` e `payments`
+   são escritos apenas por `cakto-webhook` (HMAC de `X-Cakto-Signature` verificado com janela de
+   5 min, idempotente por evento + pedido em `cakto_events`) e `cancelar-assinatura`; a trigger
+   `protect_billing_columns` recusa `plan_type` vindo de `authenticated`/`anon`, e as duas
+   tabelas de cobrança só têm política de SELECT. O estado da assinatura vem da API da Cakto,
+   nunca do nome do evento. O cliente nunca escolhe oferta nem preço — manda só o slug do
+   plano, e `cakto-checkout` resolve a oferta pelas variáveis `CAKTO_OFFER_*`; o vínculo com o
+   usuário é um token opaco (`cakto_checkouts`) no `?callback=`, nunca e-mail ou id. O front só
+   segue para `https://pay.cakto.com.br` (`urlCheckoutSegura`). Reembolso e chargeback cancelam
+   a assinatura; excluir a conta cancela a cobrança antes de apagar qualquer dado. O limite de
+   documentos é decidido por `enforce_plan_limits` (banco) a partir de `plano_efetivo()`; o gate
+   do front (`podeAdicionarDocumento`) é só experiência. Convites de família
    guardam só o hash do token; o token vai apenas no e-mail e expira em 7 dias.
 
 ## Antes de abrir um PR
@@ -80,5 +83,4 @@ conveniência; quem realmente decide quem vê o quê é o banco.
 - Confirmar confirmação de e-mail no cadastro e os rate-limits de auth.
 - CI com `npm audit` + varredura de segredos (ex.: gitleaks) + testes a cada PR.
 - Suíte automatizada de RLS/authz (provar que o usuário A não lê/escreve dados de B).
-- Webhook do Stripe (quando existir): verificar a assinatura `stripe-signature` + idempotência.
 - Aplicar as migrations no projeto **vivo** de produção (`hkdlthvyhvnlfojwqnxc`).

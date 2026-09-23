@@ -231,7 +231,7 @@ export type Database = {
           invoice_url: string | null
           payment_method: string | null
           status: string
-          stripe_payment_id: string | null
+          cakto_order_id: string | null
           usuario_id: string
         }
         Insert: {
@@ -243,7 +243,7 @@ export type Database = {
           invoice_url?: string | null
           payment_method?: string | null
           status?: string
-          stripe_payment_id?: string | null
+          cakto_order_id?: string | null
           usuario_id: string
         }
         Update: {
@@ -255,7 +255,7 @@ export type Database = {
           invoice_url?: string | null
           payment_method?: string | null
           status?: string
-          stripe_payment_id?: string | null
+          cakto_order_id?: string | null
           usuario_id?: string
         }
         Relationships: []
@@ -283,7 +283,6 @@ export type Database = {
           numero: string | null
           onboarding_completed: boolean
           plan_type: string
-          stripe_customer_id: string | null
           telefone: string | null
           uf: string | null
           user_id: string
@@ -313,7 +312,6 @@ export type Database = {
           numero?: string | null
           onboarding_completed?: boolean
           plan_type?: string
-          stripe_customer_id?: string | null
           telefone?: string | null
           uf?: string | null
           user_id: string
@@ -343,7 +341,6 @@ export type Database = {
           numero?: string | null
           onboarding_completed?: boolean
           plan_type?: string
-          stripe_customer_id?: string | null
           telefone?: string | null
           uf?: string | null
           user_id?: string
@@ -475,7 +472,28 @@ export type Database = {
           },
         ]
       }
-      stripe_events: {
+      cakto_checkouts: {
+        Row: {
+          criado_em: string
+          plano: string
+          token: string
+          usuario_id: string
+        }
+        Insert: {
+          criado_em?: string
+          plano: string
+          token: string
+          usuario_id: string
+        }
+        Update: {
+          criado_em?: string
+          plano?: string
+          token?: string
+          usuario_id?: string
+        }
+        Relationships: []
+      }
+      cakto_events: {
         Row: {
           id: string
           recebido_em: string
@@ -503,7 +521,7 @@ export type Database = {
           plan_type: string
           start_date: string
           status: string
-          stripe_subscription_id: string | null
+          cakto_subscription_id: string | null
           usuario_id: string
         }
         Insert: {
@@ -515,7 +533,7 @@ export type Database = {
           plan_type?: string
           start_date?: string
           status?: string
-          stripe_subscription_id?: string | null
+          cakto_subscription_id?: string | null
           usuario_id: string
         }
         Update: {
@@ -527,7 +545,7 @@ export type Database = {
           plan_type?: string
           start_date?: string
           status?: string
-          stripe_subscription_id?: string | null
+          cakto_subscription_id?: string | null
           usuario_id?: string
         }
         Relationships: []

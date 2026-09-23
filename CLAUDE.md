@@ -51,7 +51,8 @@ src/
 public/sw.js      service worker só de push (sem cache)
 supabase/
   migrations/     migrations SQL (aplicadas em produção via MCP; arquivo espelha o que subiu)
-  functions/      14 Edge Functions Deno; _shared/notificacoes.ts é puro e testado em Node
+  functions/      13 Edge Functions Deno; _shared/notificacoes.ts e _shared/cakto-eventos.ts são puros e testados em Node
+scripts/cakto-provisionar.mjs  cria produtos/ofertas/webhook na Cakto (chaves só no shell)
 ```
 
 `AuthContext.tsx` só exporta o provider e `hooks/useAuth.ts` só o hook — separados
@@ -71,7 +72,8 @@ Pontos a saber:
 - Um trigger `enforce_free_plan_document_limit` levanta `PLAN_LIMIT` ao inserir o
   segundo documento de um usuário FREE. Trate esse erro no frontend com
   `interpretarErro()` de `lib/erros.ts` — é o principal gate de conversão.
-- `subscriptions` e `payments` não são escritas por nada: falta o webhook do Stripe.
+- `subscriptions` e `payments` só são escritas pelo servidor (`cakto-webhook`, `cancelar-assinatura`); o
+  usuário só lê.
 - `veiculos` (placa + UF + apelido, até 5 por usuário via trigger `VEICULO_LIMIT`) alimenta o card
   "Seu carro" do Dashboard e o painel "Meu veículo" da Conta. **O DocLimpo não consulta multas**:
   os links de `data/consulta-multas-uf.ts` são fixos por UF e a placa nunca entra em URL. Consulta
@@ -115,8 +117,30 @@ Catálogo em `src/lib/planos.ts`; verdade do plano em `profiles.plan_type` (escr
 servidor) e `plano_efetivo()` no banco (migration `20260915120000_planos_e_familia.sql`), que
 inclui o plano herdado da família. O front chama `rpc('meu_plano')` e cai em `plan_type` se a
 função não existir. Ao bater o limite, `PlanosModal` abre na hora (Dashboard, AddDocumentModal e
-Onboarding). Stripe: `create-checkout` (`{ plano }`), `customer-portal`, `check-subscription`,
-`stripe-webhook`; família: `convidar-familiar`, `aceitar-convite`. Regra 9 em `docs/SEGURANCA.md`.
+Onboarding). Família: `convidar-familiar`, `aceitar-convite`. Regra 9 em `docs/SEGURANCA.md`.
+
+## Cobrança (Cakto)
+
+Assinatura mensal recorrente pela Cakto (checkout hospedado). Não existe "criar checkout" por API:
+cada plano é um produto de assinatura cuja oferta padrão é o link `pay.cakto.com.br/<id>`
+(`CAKTO_OFFER_*`). Fluxo:
+
+```
+cakto-checkout ({ plano }) → grava token opaco em cakto_checkouts → pay.cakto.com.br/<oferta>?callback=<token>
+Cakto → cakto-webhook (HMAC X-Cakto-Signature) → usuário pelo callback ou pela assinatura já conhecida
+     → GET /subscriptions/{id} na API → subscriptions + profiles.plan_type (+ payments por pedido)
+```
+
+- Estado vem da API, não do nome do evento. `active`/`trial`/`late` dão acesso; o resto rebaixa.
+- A Cakto não tem portal do cliente nem troca de plano: a Conta tem "Cancelar assinatura"
+  (`cancelar-assinatura`, imediato) e trocar de plano = cancelar + assinar de novo.
+- `refund`/`chargeback` cancelam a assinatura; `delete-account` cancela a cobrança antes de apagar.
+- Voltar ao app depois do pagamento depende do "redirect pós-pagamento" da Cakto, liberado pelo
+  Compliance deles (`compliance@cakto.com.br`); a URL a cadastrar é
+  `https://www.doclimpo.com/dashboard?checkout={{callback}}`. Sem ele, o comprador fica na tela da
+  Cakto e o plano chega pelo webhook do mesmo jeito.
+- Produtos, ofertas e webhook: `node scripts/cakto-provisionar.mjs [--confirmar]`. Regra 9 em
+  `docs/SEGURANCA.md`.
 
 ## Páginas legais e suporte
 

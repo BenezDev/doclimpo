@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../../integrations/supabase/client'
 import { bezelSpring } from '../../lib/motion'
-import { PLANOS, formatarPreco, urlStripeSegura, type PlanType, type PlanoSlug } from '../../lib/planos'
+import { PLANOS, formatarPreco, urlCheckoutSegura, type PlanType, type PlanoSlug } from '../../lib/planos'
 import { Button } from './Bezel'
 
 interface Props {
@@ -57,8 +57,8 @@ export function PlanosModal({ onClose, motivo = 'escolha', planoAtual = 'FREE' }
     setAssinando(plano)
     setErro(null)
     // O servidor resolve o preço a partir do plano; o navegador nunca envia valores.
-    const { data, error } = await supabase.functions.invoke<{ url?: string }>('create-checkout', { body: { plano } })
-    const destino = urlStripeSegura(data?.url)
+    const { data, error } = await supabase.functions.invoke<{ url?: string }>('cakto-checkout', { body: { plano } })
+    const destino = urlCheckoutSegura(data?.url)
     if (error || !destino) {
       setAssinando(null)
       setErro(await mensagemDaFuncao(error, 'Não foi possível iniciar o pagamento agora. Tente de novo em instantes.'))
@@ -98,7 +98,7 @@ export function PlanosModal({ onClose, motivo = 'escolha', planoAtual = 'FREE' }
         <div className="bz-modal__body">
           <p className="bz-modal__lead">
             {motivo === 'limite'
-              ? 'Para acompanhar mais documentos, escolha um plano. O pagamento é feito no Stripe e a assinatura pode ser cancelada a qualquer momento.'
+              ? 'Para acompanhar mais documentos, escolha um plano. O pagamento é feito na Cakto e a assinatura pode ser cancelada a qualquer momento.'
               : 'Todos os planos incluem documentos ilimitados, alertas por e-mail e notificações no navegador, além do guia de renovação.'}
           </p>
 
@@ -135,7 +135,7 @@ export function PlanosModal({ onClose, motivo = 'escolha', planoAtual = 'FREE' }
           )}
 
           <p className="planos-nota">
-            Pagamento processado pelo Stripe; não guardamos dados do cartão. Você pode desistir em até 7 dias com devolução integral. Condições nos <Link to="/termos">termos de uso</Link>.
+            Pagamento processado pela Cakto; o DocLimpo não recebe dados do cartão. Você pode desistir em até 7 dias com devolução integral. Condições nos <Link to="/termos">termos de uso</Link>.
           </p>
         </div>
       </motion.div>

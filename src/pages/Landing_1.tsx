@@ -233,7 +233,7 @@ export default function Landing() {
                 </article>
               ))}
             </div>
-            <p className="planos-nota">Pagamento pelo Stripe. Desistência em até 7 dias com devolução integral (CDC). Detalhes nos <Link to="/termos">termos de uso</Link>.</p>
+            <p className="planos-nota">Pagamento pela Cakto. Desistência em até 7 dias com devolução integral (CDC). Detalhes nos <Link to="/termos">termos de uso</Link>.</p>
           </div>
         </section>
 

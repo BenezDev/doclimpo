@@ -1,5 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { corsHeaders } from "../_shared/cors.ts";
+import { cancelarAssinatura } from "../_shared/cakto.ts";
+import { STATUS_COM_ACESSO } from "../_shared/cakto-eventos.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -34,6 +36,25 @@ Deno.serve(async (req) => {
 
     // Admin client to delete user data and auth record (LGPD)
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Cobrança primeiro: conta apagada não pode continuar sendo cobrada. Se a
+    // Cakto não confirmar o cancelamento, nada é apagado e o pedido é retentável.
+    const { data: assinaturas, error: erroAssinaturas } = await adminClient
+      .from("subscriptions")
+      .select("cakto_subscription_id")
+      .eq("usuario_id", user.id)
+      .in("status", [...STATUS_COM_ACESSO])
+      .not("cakto_subscription_id", "is", null);
+    if (erroAssinaturas) throw new Error(`Erro ao consultar assinaturas: ${erroAssinaturas.message}`);
+    try {
+      for (const { cakto_subscription_id: id } of assinaturas ?? []) await cancelarAssinatura(id!);
+    } catch (erro) {
+      console.error("delete-account: cancelar assinatura:", erro);
+      return new Response(
+        JSON.stringify({ error: "Não foi possível cancelar sua assinatura agora; nada foi apagado. Tente de novo em instantes." }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
     // Apaga os dados respeitando as chaves estrangeiras e a coluna de posse
     // correta de cada tabela: profiles/referral_codes usam user_id; referrals

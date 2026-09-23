@@ -1,8 +1,8 @@
 // Catálogo de planos e regras de limite. Lógica pura, espelho da função SQL
 // `plano_efetivo()` e da trigger `enforce_plan_limits` (migration
 // 20260915120000_planos_e_familia.sql). O banco é a autoridade; isto é UX +
-// defesa em profundidade. Preços aqui são só exibição — o valor cobrado vem do
-// price do Stripe resolvido no servidor (create-checkout), nunca do cliente.
+// defesa em profundidade. Preços aqui são só exibição — o valor cobrado vem da
+// oferta da Cakto resolvida no servidor (cakto-checkout), nunca do cliente.
 
 export const PLAN_TYPES = ['FREE', 'INDIVIDUAL', 'FAMILIAR', 'MEI'] as const
 export type PlanType = (typeof PLAN_TYPES)[number]
@@ -111,15 +111,14 @@ export function formatarPreco(centavos: number): string {
   return `R$ ${reais},${resto}`
 }
 
-// A URL de Checkout/Portal vem da nossa Edge Function, mas só seguimos para o
-// Stripe: se algo no caminho for comprometido, o navegador não é redirecionado
-// para um host arbitrário.
-export function urlStripeSegura(url: unknown): string | null {
+// A URL do checkout vem da nossa Edge Function, mas só seguimos para o
+// checkout da Cakto: se algo no caminho for comprometido, o navegador não é
+// redirecionado para um host arbitrário.
+export function urlCheckoutSegura(url: unknown): string | null {
   if (typeof url !== 'string') return null
   try {
     const parsed = new URL(url)
-    const host = parsed.hostname
-    return parsed.protocol === 'https:' && (host === 'stripe.com' || host.endsWith('.stripe.com')) ? url : null
+    return parsed.protocol === 'https:' && parsed.hostname === 'pay.cakto.com.br' ? url : null
   } catch {
     return null
   }

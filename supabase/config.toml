@@ -21,20 +21,17 @@ verify_jwt = false
 [functions.check-expiring-documents]
 verify_jwt = false
 
-[functions.create-checkout]
+[functions.cakto-checkout]
 verify_jwt = false
 
-[functions.check-subscription]
-verify_jwt = false
-
-[functions.customer-portal]
+[functions.cancelar-assinatura]
 verify_jwt = false
 
 [functions.send-pending-notifications]
 verify_jwt = false
 
-# O Stripe chama sem JWT: a assinatura stripe-signature é a autenticação.
-[functions.stripe-webhook]
+# A Cakto chama sem JWT: o HMAC de X-Cakto-Signature é a autenticação.
+[functions.cakto-webhook]
 verify_jwt = false
 
 [functions.convidar-familiar]
