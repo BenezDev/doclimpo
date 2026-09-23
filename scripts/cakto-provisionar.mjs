@@ -60,6 +60,20 @@ async function listarTudo(caminho) {
 }
 
 const reais = centavos => (centavos / 100).toFixed(2)
+
+// A Cakto soma uma "Taxa de serviço" ao total do comprador (hoje R$ 0,99 por
+// pedido). A oferta sai por preço do catálogo − taxa, para o comprador pagar
+// exatamente o preço anunciado no site. Se a Cakto isentar ou transferir a taxa
+// para o produtor, ela some de /fees/ e rodar de novo volta o preço cheio.
+const { customerFees = [] } = await api('GET', '/fees/')
+const taxasGerais = customerFees.filter(taxa => !taxa.paymentMethod)
+if (taxasGerais.some(taxa => Number(taxa.percentage) > 0)) console.log('Atenção: a Cakto passou a cobrar taxa percentual do comprador; só a parte fixa é descontada do preço.')
+const taxaCentavos = taxasGerais.reduce((soma, taxa) => soma + Math.round(Number(taxa.amount || 0) * 100), 0)
+if (taxaCentavos) console.log(`Taxa de serviço da Cakto: R$ ${reais(taxaCentavos)} por pedido, descontada do preço das ofertas.\n`)
+
+// Só cobrança recorrente automática: cartão ou Pix Automático (sem Pix avulso).
+const METODOS = ['credit_card', 'pix_auto']
+
 const produtos = await listarTudo('/products/')
 const ofertas = await listarTudo('/offers/')
 const segredos = {}
@@ -69,20 +83,30 @@ for (const plano of PLANOS) {
   const nome = `DocLimpo ${plano.nome}`
   let produto = produtos.find(p => p.name === nome && p.status !== 'deleted')
 
+  const precoCentavos = plano.precoCentavos - taxaCentavos
+  const configProduto = {
+    name: nome,
+    description: plano.descricao,
+    price: reais(precoCentavos),
+    currency: 'BRL',
+    type: 'subscription',
+    salesPage: APP_URL,
+    paymentMethods: METODOS,
+    defaultPaymentMethod: 'credit_card',
+  }
+
   if (!produto) {
-    console.log(`• ${nome}: criar produto de assinatura (R$ ${reais(plano.precoCentavos)}/mês)`)
+    console.log(`• ${nome}: criar produto de assinatura (R$ ${reais(precoCentavos)} + taxa = R$ ${reais(plano.precoCentavos)}/mês)`)
     if (!CONFIRMAR) continue
-    produto = await api('POST', '/products/', {
-      name: nome,
-      description: plano.descricao,
-      price: reais(plano.precoCentavos),
-      currency: 'BRL',
-      type: 'subscription',
-      salesPage: APP_URL,
-    })
+    produto = await api('POST', '/products/', configProduto)
     ofertas.push(...(await listarTudo('/offers/')).filter(o => o.product === produto.id))
   } else {
     console.log(`• ${nome}: produto já existe (${produto.id})`)
+  }
+  const metodosAtuais = [...(produto.paymentMethods ?? [])].sort().join(',')
+  if (metodosAtuais !== [...METODOS].sort().join(',') || Number(produto.price) !== precoCentavos / 100) {
+    console.log(`  produto: pagamento só ${METODOS.join(' e ')} (era: ${metodosAtuais || 'padrão'}), preço R$ ${reais(precoCentavos)}`)
+    if (CONFIRMAR) produto = { ...produto, ...(await api('PUT', `/products/${encodeURIComponent(produto.id)}/`, configProduto)) }
   }
   produtosIds.push(produto.id)
 
@@ -92,7 +116,7 @@ for (const plano of PLANOS) {
   if (!oferta) throw new Error(`Produto ${produto.id} sem oferta — confira no painel da Cakto.`)
   const esperado = {
     name: nome,
-    price: plano.precoCentavos / 100,
+    price: precoCentavos / 100,
     currency: 'BRL',
     type: 'subscription',
     intervalType: 'month',
@@ -103,7 +127,7 @@ for (const plano of PLANOS) {
   }
   const divergente = Object.entries(esperado).some(([chave, valor]) => oferta[chave] !== valor)
   if (divergente) {
-    console.log(`  oferta ${oferta.id}: ajustar para mensal recorrente, R$ ${reais(plano.precoCentavos)}`)
+    console.log(`  oferta ${oferta.id}: ajustar para mensal recorrente, R$ ${reais(precoCentavos)} (o comprador paga R$ ${reais(plano.precoCentavos)} com a taxa)`)
     if (CONFIRMAR) await api('PUT', `/offers/${encodeURIComponent(oferta.id)}/`, { ...esperado, product: produto.id })
   } else {
     console.log(`  oferta ${oferta.id}: ok`)
@@ -121,6 +145,7 @@ if (webhook && NOVO_SEGREDO) {
   if (CONFIRMAR) await api('DELETE', `/webhook/${webhook.id}/`)
   webhook = null
 }
+const webhookNovo = !webhook
 if (!webhook) {
   console.log(`\n• Webhook → ${WEBHOOK_URL}: criar (${EVENTOS_TRATADOS.size} eventos)`)
   if (CONFIRMAR) webhook = await api('POST', '/webhook/', configWebhook)
@@ -149,6 +174,11 @@ if (SUPABASE_ACCESS_TOKEN) {
   })
   if (!resposta.ok) throw new Error(`Supabase secrets: HTTP ${resposta.status} ${await resposta.text()}`)
   console.log(`\nSegredos gravados no Supabase: ${lista.map(s => s.name).join(', ')}.`)
+  process.exit(0)
+}
+
+if (!webhookNovo) {
+  console.log('\nNada a gravar no Supabase: ofertas e segredo do webhook não mudaram.')
   process.exit(0)
 }
 
