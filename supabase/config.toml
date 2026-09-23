@@ -1,21 +1,12 @@
 project_id = "zgpixmunvgnwgzzfwpjg"
 
-[functions.process-referral]
-verify_jwt = false
-
 [functions.delete-account]
-verify_jwt = false
-
-[functions.user-stats]
 verify_jwt = false
 
 [functions.send-test-notification]
 verify_jwt = false
 
 [functions.whatsapp-verificar]
-verify_jwt = false
-
-[functions.documents-filter]
 verify_jwt = false
 
 [functions.check-expiring-documents]

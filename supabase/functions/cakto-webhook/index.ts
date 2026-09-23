@@ -110,7 +110,9 @@ async function processar(supabase: SupabaseClient, env: Record<string, string>, 
   }
   // O plano é o da oferta efetivamente paga; o registrado antes é o reserva.
   const plano = planoDaOferta(pedido.offer?.id, env) ?? vinculo.plano;
-  await aplicarAssinatura(supabase, vinculo.usuarioId, resumirAssinatura(assinatura, plano));
+  await aplicarAssinatura(supabase, vinculo.usuarioId, resumirAssinatura(assinatura, plano), {
+    encerraNaHora: EVENTOS_QUE_ENCERRAM.has(evento),
+  });
 }
 
 // A assinatura já conhecida manda (renovações nem sempre trazem o callback);

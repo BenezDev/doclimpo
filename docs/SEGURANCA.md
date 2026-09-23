@@ -24,8 +24,8 @@ conveniência; quem realmente decide quem vê o quê é o banco.
 2. **Service role = autorização na mão.** Toda Edge Function que usa `SUPABASE_SERVICE_ROLE_KEY`
    ignora o RLS — então precisa: (a) autenticar o chamador com `auth.getUser()`; e
    (b) derivar o id-alvo **do token**, nunca do corpo do request. Todo id vindo do cliente é
-   validado contra o dono. Exemplos certos: `delete-account` e `process-referral`
-   (resolve o indicador pelo código, não pelo que o cliente manda).
+   validado contra o dono. Exemplos certos: `delete-account` e `cancelar-assinatura`
+   (a assinatura a cancelar vem do banco pelo id do token, não do que o cliente manda).
 
 3. **Valide na borda.** Todo corpo de request e todo formulário passa por um schema `zod`
    (`src/lib/validacao.ts`) — tipos, tamanhos, enums. E **espelhe no banco** com `CHECK`
@@ -62,7 +62,9 @@ conveniência; quem realmente decide quem vê o quê é o banco.
    plano, e `cakto-checkout` resolve a oferta pelas variáveis `CAKTO_OFFER_*`; o vínculo com o
    usuário é um token opaco (`cakto_checkouts`) no `?callback=`, nunca e-mail ou id. O front só
    segue para `https://pay.cakto.com.br` (`urlCheckoutSegura`). Reembolso e chargeback cancelam
-   a assinatura; excluir a conta cancela a cobrança antes de apagar qualquer dado. O limite de
+   a assinatura e encerram o acesso na hora; o cancelamento pela conta mantém o plano até o fim
+   do mês pago por `subscriptions.acesso_ate`, que só o servidor grava. Excluir a conta cancela a
+   cobrança antes de apagar qualquer dado. O limite de
    documentos é decidido por `enforce_plan_limits` (banco) a partir de `plano_efetivo()`; o gate
    do front (`podeAdicionarDocumento`) é só experiência. Convites de família
    guardam só o hash do token; o token vai apenas no e-mail e expira em 7 dias.

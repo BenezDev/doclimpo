@@ -31,6 +31,7 @@ import { useTheme } from '../hooks/useTheme'
 import { usePlano } from '../hooks/usePlano'
 import { supabase } from '../integrations/supabase/client'
 import { validateNewPassword } from '../lib/access-flow'
+import { formatarData, paraISO } from '../lib/datas'
 import { codigoSchema, telefoneSchema } from '../lib/validacao'
 import { resumoEndereco, temEndereco, type PerfilEndereco } from '../lib/endereco'
 import { bezelSpring } from '../lib/motion'
@@ -132,6 +133,7 @@ export default function Conta() {
   const [mostrarPlanos, setMostrarPlanos] = useState(false)
   const [confirmandoCancelamento, setConfirmandoCancelamento] = useState(false)
   const [cancelando, setCancelando] = useState(false)
+  const [acessoAte, setAcessoAte] = useState<string | null>(null)
   const [avisoPlano, setAvisoPlano] = useState<Aviso>(null)
   const [emailConvite, setEmailConvite] = useState('')
   const [convidando, setConvidando] = useState(false)
@@ -143,6 +145,9 @@ export default function Conta() {
   const email = user?.email ?? perfil?.email ?? ''
   const planoProprioPago = ehPago(normalizarPlano(perfil?.plan_type))
   const planoHerdado = !planoProprioPago && ehPago(plano) && familia?.papel === 'membro'
+  // Assinatura cancelada que ainda vale até o fim do mês pago (subscriptions.acesso_ate).
+  const planoEncerrando = !planoProprioPago && !planoHerdado && ehPago(plano) && acessoAte !== null
+  const dataFimPlano = acessoAte ? formatarData(paraISO(new Date(acessoAte))) : ''
 
   useEffect(() => {
     if (!user) return
@@ -157,6 +162,21 @@ export default function Conta() {
         setPerfil(data as PerfilConta | null)
         setCarregando(false)
       })
+    return () => { cancelled = true }
+  }, [user])
+
+  useEffect(() => {
+    if (!user) return
+    let cancelled = false
+    supabase
+      .from('subscriptions')
+      .select('acesso_ate')
+      .eq('usuario_id', user.id)
+      .gt('acesso_ate', new Date().toISOString())
+      .order('acesso_ate', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => { if (!cancelled) setAcessoAte(data?.acesso_ate ?? null) })
     return () => { cancelled = true }
   }, [user])
 
@@ -219,16 +239,23 @@ export default function Conta() {
   const cancelarAssinatura = async () => {
     setCancelando(true)
     setAvisoPlano(null)
-    const { error } = await supabase.functions.invoke('cancelar-assinatura', { body: {} })
+    const { data, error } = await supabase.functions.invoke<{ acessoAte?: string | null }>('cancelar-assinatura', { body: {} })
     setCancelando(false)
     setConfirmandoCancelamento(false)
     if (error) {
       setAvisoPlano({ tipo: 'erro', texto: await mensagemDaFuncao(error, 'Não foi possível cancelar agora. Tente de novo em instantes.') })
       return
     }
+    const fim = data?.acessoAte ?? null
+    setAcessoAte(fim)
     setPerfil(atual => atual ? { ...atual, plan_type: 'FREE' } : atual)
     recarregarPlano()
-    setAvisoPlano({ tipo: 'sucesso', texto: 'Assinatura cancelada. Não haverá novas cobranças e a conta voltou ao plano gratuito.' })
+    setAvisoPlano({
+      tipo: 'sucesso',
+      texto: fim
+        ? `Assinatura cancelada. Não haverá novas cobranças e o plano continua até ${formatarData(paraISO(new Date(fim)))}.`
+        : 'Assinatura cancelada. Não haverá novas cobranças e a conta voltou ao plano gratuito.',
+    })
   }
 
   const convidar = async (event: React.FormEvent) => {
@@ -514,7 +541,7 @@ export default function Conta() {
             <div className="bz-modal__body detail-delete-dialog">
               <span className="detail-delete-dialog__icon"><WalletCards size={22} strokeWidth={1.75} /></span>
               <h2 id="cancelar-assinatura-title">Cancelar a assinatura?</h2>
-              <p>O cancelamento vale na hora: não há novas cobranças e a conta volta ao plano gratuito, que monitora 1 documento. Seus documentos continuam salvos.{plano === 'FAMILIAR' ? ' As pessoas da sua família também deixam de ter o plano.' : ''}</p>
+              <p>Não há novas cobranças. Você mantém o plano até o fim do mês já pago; depois a conta volta ao plano gratuito, que monitora 1 documento. Seus documentos continuam salvos.{plano === 'FAMILIAR' ? ' As pessoas da sua família também deixam de ter o plano nessa data.' : ''}</p>
               <div className="bz-modal__actions">
                 <Button variant="secondary" disabled={cancelando} onClick={() => setConfirmandoCancelamento(false)}>Manter plano</Button>
                 <Button variant="danger" disabled={cancelando} onClick={cancelarAssinatura}>{cancelando ? 'Cancelando…' : 'Cancelar assinatura'}</Button>
@@ -799,21 +826,25 @@ export default function Conta() {
               <p>Plano herdado da família{familia?.titularNome ? ` de ${familia.titularNome}` : ''}: documentos ilimitados enquanto você fizer parte dela.</p>
             ) : planoProprioPago ? (
               <p>Documentos ilimitados, alertas por e-mail e notificações no navegador, guia de renovação. Cobrança mensal pela Cakto; os recibos chegam por e-mail.</p>
+            ) : planoEncerrando ? (
+              <p>Assinatura cancelada, sem novas cobranças. O plano continua até {dataFimPlano}; depois a conta volta ao gratuito, que monitora 1 documento. Seus documentos continuam salvos.</p>
             ) : (
               <p>Um documento monitorado, alertas por e-mail e guia de renovação. Sem cartão. Para acompanhar mais documentos e receber notificações no navegador, assine um plano.</p>
             )}
             <Feedback aviso={avisoPlano} />
-            <div className="conta-actions">
-              {planoHerdado ? (
-                <Button variant="ghost" size="sm" onClick={sairDaFamilia} icon={<UserMinus size={15} strokeWidth={1.75} />}>Sair da família</Button>
-              ) : planoProprioPago ? (
-                <Button variant="secondary" size="sm" onClick={() => setConfirmandoCancelamento(true)} icon={<WalletCards size={15} strokeWidth={1.75} />}>
-                  Cancelar assinatura
-                </Button>
-              ) : (
-                <Button variant="primary" size="sm" onClick={() => setMostrarPlanos(true)}>Ver planos</Button>
-              )}
-            </div>
+            {!planoEncerrando && (
+              <div className="conta-actions">
+                {planoHerdado ? (
+                  <Button variant="ghost" size="sm" onClick={sairDaFamilia} icon={<UserMinus size={15} strokeWidth={1.75} />}>Sair da família</Button>
+                ) : planoProprioPago ? (
+                  <Button variant="secondary" size="sm" onClick={() => setConfirmandoCancelamento(true)} icon={<WalletCards size={15} strokeWidth={1.75} />}>
+                    Cancelar assinatura
+                  </Button>
+                ) : (
+                  <Button variant="primary" size="sm" onClick={() => setMostrarPlanos(true)}>Ver planos</Button>
+                )}
+              </div>
+            )}
             <small>Condições completas nos <Link to="/termos">termos de uso</Link>.</small>
           </section>
 

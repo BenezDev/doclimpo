@@ -513,6 +513,7 @@ export type Database = {
       }
       subscriptions: {
         Row: {
+          acesso_ate: string | null
           atualizado_em: string
           auto_renew: boolean
           criado_em: string
@@ -525,6 +526,7 @@ export type Database = {
           usuario_id: string
         }
         Insert: {
+          acesso_ate?: string | null
           atualizado_em?: string
           auto_renew?: boolean
           criado_em?: string
@@ -537,6 +539,7 @@ export type Database = {
           usuario_id: string
         }
         Update: {
+          acesso_ate?: string | null
           atualizado_em?: string
           auto_renew?: boolean
           criado_em?: string

@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createHmac } from 'node:crypto'
 import {
-  assinaturaAtiva, assinaturaDoPedido, assinaturaWebhookValida, ehPlanoSlug, EVENTOS_QUE_ENCERRAM, EVENTOS_TRATADOS,
+  acessoAposEncerrar, assinaturaAtiva, assinaturaDoPedido, assinaturaWebhookValida, ehPlanoSlug, EVENTOS_QUE_ENCERRAM, EVENTOS_TRATADOS,
   ofertaDoPlano, pedidosDoEvento, planoDaOferta, resumirAssinatura, STATUS_COM_ACESSO, statusLocal, statusPagamento, urlCheckout,
 } from '../supabase/functions/_shared/cakto-eventos.ts'
 
@@ -91,4 +91,20 @@ test('X-Cakto-Signature: HMAC do corpo cru com o segredo, dentro de 5 minutos', 
   assert.equal(await assinaturaWebhookValida(segredo, '12a', corpo, assinar('12a'), agora), false)
   assert.equal(await assinaturaWebhookValida(segredo, ts, corpo, null, agora), false)
   assert.equal(await assinaturaWebhookValida('', ts, corpo, assinar(ts, corpo, ''), agora), false)
+})
+
+test('cancelar mantém o plano até o fim do mês pago; reembolso e chargeback encerram na hora', () => {
+  const agora = new Date('2026-09-23T12:00:00Z')
+  const pago = { status: 'ACTIVE', end_date: '2026-10-22T12:00:00+00:00', acesso_ate: null }
+  assert.equal(acessoAposEncerrar(false, false, pago, agora), '2026-10-22T12:00:00+00:00')
+  assert.equal(acessoAposEncerrar(false, true, pago, agora), null)
+  assert.equal(acessoAposEncerrar(true, false, pago, agora), null)
+  assert.equal(acessoAposEncerrar(false, false, null, agora), null)
+  // Período já vencido ou atrasado (sem pagamento) não estende acesso.
+  assert.equal(acessoAposEncerrar(false, false, { ...pago, end_date: '2026-09-01T00:00:00+00:00' }, agora), null)
+  assert.equal(acessoAposEncerrar(false, false, { ...pago, status: 'PAST_DUE' }, agora), null)
+  // Segundo evento de encerramento (webhook depois do cancelamento na Conta) preserva a data.
+  const cancelada = { status: 'CANCELED', end_date: null, acesso_ate: '2026-10-22T12:00:00+00:00' }
+  assert.equal(acessoAposEncerrar(false, false, cancelada, agora), '2026-10-22T12:00:00+00:00')
+  assert.equal(acessoAposEncerrar(false, true, cancelada, agora), null)
 })

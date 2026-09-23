@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
-import { assinaturaAtiva, STATUS_COM_ACESSO, type AssinaturaCakto, type ResumoAssinatura } from "./cakto-eventos.ts";
+import { acessoAposEncerrar, assinaturaAtiva, STATUS_COM_ACESSO, type AssinaturaCakto, type ResumoAssinatura } from "./cakto-eventos.ts";
 
 // Cliente mínimo da API pública da Cakto e a gravação da assinatura no banco,
 // compartilhados por cakto-webhook, cancelar-assinatura e delete-account.
@@ -55,14 +55,33 @@ export async function cancelarAssinatura(id: string): Promise<AssinaturaCakto | 
 
 // Grava a assinatura e o plano do usuário. Troca de plano na Cakto é cancelar
 // e assinar de novo: o cancelamento da antiga não pode rebaixar quem já tem
-// outra assinatura com acesso.
-export async function aplicarAssinatura(supabase: SupabaseClient, usuarioId: string, resumo: ResumoAssinatura) {
+// outra assinatura com acesso. Ao encerrar, o mês já pago segue valendo por
+// acesso_ate, salvo encerraNaHora (reembolso, chargeback). Devolve acesso_ate.
+export async function aplicarAssinatura(
+  supabase: SupabaseClient,
+  usuarioId: string,
+  resumo: ResumoAssinatura,
+  { encerraNaHora = false } = {},
+): Promise<string | null> {
+  let anterior = null;
+  if (!resumo.ativa) {
+    const { data, error } = await supabase
+      .from("subscriptions")
+      .select("status, end_date, acesso_ate")
+      .eq("cakto_subscription_id", resumo.caktoSubscriptionId)
+      .maybeSingle();
+    if (error) throw new Error(`subscriptions: ${error.message}`);
+    anterior = data;
+  }
+  const acessoAte = acessoAposEncerrar(resumo.ativa, encerraNaHora, anterior);
+
   const { error: erroAssinatura } = await supabase.from("subscriptions").upsert(
     {
       usuario_id: usuarioId,
       plan_type: resumo.plano ?? "FREE",
       status: resumo.status,
       end_date: resumo.fimPeriodo,
+      acesso_ate: acessoAte,
       auto_renew: resumo.autoRenova,
       cakto_subscription_id: resumo.caktoSubscriptionId,
       atualizado_em: new Date().toISOString(),
@@ -88,4 +107,5 @@ export async function aplicarAssinatura(supabase: SupabaseClient, usuarioId: str
 
   const { error: erroPerfil } = await supabase.from("profiles").update({ plan_type: plano }).eq("user_id", usuarioId);
   if (erroPerfil) throw new Error(`profiles: ${erroPerfil.message}`);
+  return acessoAte;
 }

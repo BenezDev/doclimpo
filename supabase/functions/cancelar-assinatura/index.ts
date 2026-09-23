@@ -5,7 +5,8 @@ import { resumirAssinatura, STATUS_COM_ACESSO, type PlanType } from "../_shared/
 
 // Cancela na Cakto as assinaturas com acesso do usuário autenticado (a Cakto
 // não tem portal do cliente; o cancelamento "pela sua conta" dos termos é
-// este). O id vem do banco, nunca do corpo do request.
+// este). O id vem do banco, nunca do corpo do request. Não há nova cobrança,
+// e o plano segue até o fim do mês já pago (acessoAte).
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -34,13 +35,15 @@ Deno.serve(async (req) => {
     if (error) throw new Error(error.message);
     if (!assinaturas?.length) return responder({ error: "Nenhuma assinatura ativa encontrada para esta conta." }, 404);
 
+    let acessoAte: string | null = null;
     for (const { cakto_subscription_id: id, plan_type } of assinaturas) {
       const atual = await cancelarAssinatura(id!);
       const plano = plan_type === "FREE" ? null : (plan_type as PlanType);
-      await aplicarAssinatura(admin, user.id, resumirAssinatura(atual ?? { id: id!, status: "canceled" }, plano));
+      const fim = await aplicarAssinatura(admin, user.id, resumirAssinatura(atual ?? { id: id!, status: "canceled" }, plano));
+      if (fim && (!acessoAte || fim > acessoAte)) acessoAte = fim;
     }
 
-    return responder({ cancelada: true });
+    return responder({ cancelada: true, acessoAte });
   } catch (erro) {
     console.error("cancelar-assinatura:", erro);
     return responder({ error: "Não foi possível concluir o cancelamento agora. Tente de novo em instantes." }, 500);

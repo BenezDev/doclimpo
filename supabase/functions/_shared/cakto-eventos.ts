@@ -157,6 +157,20 @@ export function resumirAssinatura(sub: AssinaturaCakto, plano: PlanType | null):
   };
 }
 
+// subscriptions.acesso_ate: quem cancela mantém o plano até o fim do mês já
+// pago (plano_efetivo no banco lê esta coluna). Só conta período pago de fato
+// (status ACTIVE antes de encerrar); reembolso e chargeback encerram na hora.
+export function acessoAposEncerrar(
+  ativa: boolean,
+  encerraNaHora: boolean,
+  anterior: { status: string; end_date: string | null; acesso_ate: string | null } | null,
+  agora: Date = new Date(),
+): string | null {
+  if (ativa || encerraNaHora || !anterior) return null;
+  const fim = anterior.acesso_ate ?? (anterior.status === "ACTIVE" ? anterior.end_date : null);
+  return fim && new Date(fim).getTime() > agora.getTime() ? fim : null;
+}
+
 // X-Cakto-Signature: "v1=<hex do HMAC-SHA256 de `${timestamp}.${corpo cru}`>",
 // com o segredo do webhook. Pode trazer várias versões separadas por vírgula;
 // só a v1 conta. Janela de 5 min contra reenvio de payload capturado.

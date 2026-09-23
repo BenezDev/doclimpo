@@ -16,7 +16,7 @@ Projetos Supabase:
 
 | Ref | Onde | Situação |
 |---|---|---|
-| `zgpixmunvgnwgzzfwpjg` | **`.env` local e `config.toml` (desde 15/09/2026)**, sa-east-1, conta do João | **o banco do DocLimpo**: 12 migrations aplicadas, 13 Edge Functions no ar, cron agendado, Vault com `project_url`/`cron_secret` |
+| `zgpixmunvgnwgzzfwpjg` | **`.env` local e `config.toml` (desde 15/09/2026)**, sa-east-1, conta do João | **o banco do DocLimpo**: migrations aplicadas, 10 Edge Functions no ar, cron agendado, Vault com `project_url`/`cron_secret` |
 | `hkdlthvyhvnlfojwqnxc` | bundle antigo em `docalert-three.vercel.app` | de outra conta, sem acesso; 5 migrations atrás do código — não usar |
 | `hwsuqxwonfhjtyxervqh` | mesma conta Supabase | outro projeto (`licenses`), não é do DocLimpo — não mexer |
 | `powthshacxtxqfsuifeb` | histórico | morto (NXDOMAIN) |
@@ -51,7 +51,7 @@ src/
 public/sw.js      service worker só de push (sem cache)
 supabase/
   migrations/     migrations SQL (aplicadas em produção via MCP; arquivo espelha o que subiu)
-  functions/      13 Edge Functions Deno; _shared/notificacoes.ts e _shared/cakto-eventos.ts são puros e testados em Node
+  functions/      10 Edge Functions Deno; _shared/notificacoes.ts e _shared/cakto-eventos.ts são puros e testados em Node
 scripts/cakto-provisionar.mjs  cria produtos/ofertas/webhook na Cakto (chaves só no shell)
 ```
 
@@ -133,8 +133,12 @@ Cakto → cakto-webhook (HMAC X-Cakto-Signature) → usuário pelo callback ou p
 
 - Estado vem da API, não do nome do evento. `active`/`trial`/`late` dão acesso; o resto rebaixa.
 - A Cakto não tem portal do cliente nem troca de plano: a Conta tem "Cancelar assinatura"
-  (`cancelar-assinatura`, imediato) e trocar de plano = cancelar + assinar de novo.
-- `refund`/`chargeback` cancelam a assinatura; `delete-account` cancela a cobrança antes de apagar.
+  (`cancelar-assinatura`) e trocar de plano = cancelar + assinar de novo.
+- Cancelar não cobra de novo, mas o plano segue até o fim do mês pago: `subscriptions.acesso_ate`
+  (gravado por `aplicarAssinatura`, regra pura `acessoAposEncerrar`) e `plano_proprio()`/`plano_efetivo()`
+  no banco, que comparam com `now()` — nenhum cron rebaixa.
+- `refund`/`chargeback` cancelam a assinatura e encerram o acesso na hora (`acesso_ate` null);
+  `delete-account` cancela a cobrança antes de apagar.
 - Voltar ao app depois do pagamento depende do "redirect pós-pagamento" da Cakto, liberado pelo
   Compliance deles (`compliance@cakto.com.br`); a URL a cadastrar é
   `https://www.doclimpo.com/dashboard?checkout={{callback}}`. Sem ele, o comprador fica na tela da
