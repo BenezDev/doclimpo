@@ -827,7 +827,7 @@ export default function Conta() {
                 </div>
               </div>
               <ul className="conta-membros">
-                <li><strong>{nome}</strong><span>{email}</span><em>Titular</em></li>
+                <li className="conta-membros__titular"><strong>{nome}</strong><span>{email}</span><em>Titular</em></li>
                 {membros.map(membro => (
                   <li key={membro.id}>
                     <strong>{membro.email}</strong>
