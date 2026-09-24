@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { corsHeaders } from "../_shared/cors.ts";
+import { COR_EMAIL, REMETENTE_PADRAO, layoutEmail } from "../_shared/email.ts";
 import { escapeHtml } from "../_shared/html.ts";
 import { gerarToken, hashToken } from "../_shared/token.ts";
 
@@ -98,18 +99,16 @@ Deno.serve(async (req) => {
       method: "POST",
       headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        from: Deno.env.get("EMAIL_FROM") ?? "DocLimpo <alertas@docalert.com.br>",
+        from: Deno.env.get("EMAIL_FROM") ?? REMETENTE_PADRAO,
         to: [email],
         subject: `${perfil?.nome || "Alguém"} convidou você para a família no DocLimpo`,
-        html: `<!doctype html><html lang="pt-BR"><body style="margin:0;padding:24px;background:#f8f9fc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-  <div style="max-width:520px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;padding:28px;">
-    <p style="margin:0 0 12px;font-size:17px;font-weight:800;color:#0f172a;">Doc<span style="color:#0a7742;">Limpo</span></p>
-    <h1 style="margin:0 0 12px;font-size:20px;color:#0f172a;">${nomeSeguro} convidou você para a família.</h1>
-    <p style="margin:0 0 20px;font-size:14px;line-height:1.65;color:#475569;">Com o plano Família, você acompanha seus próprios documentos e recebe os alertas no seu e-mail, sem pagar nada. Crie sua conta (ou entre) usando <strong>este mesmo e-mail</strong> e aceite o convite.</p>
-    <a href="${link}" style="display:inline-block;background:#0a7742;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:8px;font-size:14px;font-weight:700;">Aceitar convite</a>
-    <p style="margin:20px 0 0;font-size:12px;color:#94a3b8;">O convite vale por ${VALIDADE_DIAS} dias. Se você não esperava este e-mail, ignore-o.</p>
-  </div>
-</body></html>`,
+        html: layoutEmail({
+          appUrl,
+          titulo: `${nomeSeguro} convidou você para a família.`,
+          corpo: `<p style="margin:0 0 24px;font-size:15px;line-height:1.65;color:${COR_EMAIL.texto};">Com o plano Família, você acompanha seus próprios documentos e recebe os avisos no seu e-mail, sem pagar nada. Crie sua conta (ou entre) usando <strong>este mesmo e-mail</strong> e aceite o convite.</p>`,
+          cta: { texto: "Aceitar convite", url: link },
+          rodape: `O convite vale por ${VALIDADE_DIAS} dias. Se você não esperava este e-mail, ignore-o.`,
+        }),
       }),
     });
 

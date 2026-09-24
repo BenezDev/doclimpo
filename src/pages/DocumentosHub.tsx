@@ -17,7 +17,7 @@ export default function DocumentosHub() {
         {DOCUMENTOS_PUBLICOS.map(item => (
           <li key={item.slug}>
             <Link className="documentos-hub__card" to={`/documentos/${item.slug}`}>
-              <DocumentGlyph type={item.slug} />
+              <DocumentGlyph type={item.tipo} />
               <span>
                 <strong>{item.nome}</strong>
                 <small>{item.descricao}</small>

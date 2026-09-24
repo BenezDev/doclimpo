@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { PublicShell } from '../components/ui/PublicShell'
 import { ActionLink } from '../components/ui/ActionLink'
 import { useAuth } from '../hooks/useAuth'
-import { withDocumentIntent } from '../lib/public-content'
+import { withIntent } from '../lib/public-content'
 
 export default function ThankYou() {
   const { state, search } = useLocation()
@@ -23,7 +23,7 @@ export default function ThankYou() {
             : user ? 'Agora escolha um documento e informe quando ele vence. O primeiro é gratuito e não precisa de cartão.'
               : 'Crie sua conta gratuita e organize o vencimento do seu primeiro documento.'}</p>
           {!loading && <div className="outcome-actions">
-            <ActionLink to={withDocumentIntent(user ? '/onboarding' : pending ? '/login' : '/cadastro', search)} variant="primary" size="lg">
+            <ActionLink to={withIntent(user ? '/onboarding' : pending ? '/login' : '/cadastro', search)} variant="primary" size="lg">
               {user ? 'Cadastrar meu primeiro documento' : pending ? 'Entrar após confirmar' : 'Criar conta gratuita'}<ArrowRight size={17} />
             </ActionLink>
             <ActionLink to={user ? '/dashboard' : '/'} variant="ghost">{user ? 'Ver meu painel' : 'Voltar ao início'}</ActionLink>

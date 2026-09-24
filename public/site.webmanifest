@@ -1,13 +1,13 @@
 {
   "name": "DocLimpo",
   "short_name": "DocLimpo",
-  "description": "Alertas de vencimento de documentos, antes do prazo.",
+  "description": "Aviso antes de vencer a CNH, o licenciamento, o IPVA, a multa e outros documentos.",
   "lang": "pt-BR",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#F2F5F3",
-  "theme_color": "#F2F5F3",
+  "background_color": "#101614",
+  "theme_color": "#101614",
   "icons": [
     {
       "src": "/icon-192.png",

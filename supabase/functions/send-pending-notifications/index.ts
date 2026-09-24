@@ -2,6 +2,7 @@ import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supa
 import { corsHeaders } from "../_shared/cors.ts";
 import { compararSegredo } from "../_shared/seguranca.ts";
 import { escapeHtml } from "../_shared/html.ts";
+import { COR_EMAIL, REMETENTE_PADRAO, layoutEmail } from "../_shared/email.ts";
 import { CANAIS, type Canal, formatarData, higienizarTexto, rotuloDocumento, textoAlerta } from "../_shared/notificacoes.ts";
 import { carregarServidorPush, enviarPush as enviarPushWeb } from "../_shared/push.ts";
 import { configWhatsapp, enviarTemplate } from "../_shared/whatsapp.ts";
@@ -11,7 +12,6 @@ import { configWhatsapp, enviarTemplate } from "../_shared/whatsapp.ts";
 const LOTE = 100;
 const JANELA_RETENTATIVA_DIAS = 7;
 const APP_URL = Deno.env.get("APP_URL") ?? "https://www.doclimpo.com";
-const VERDE = "#0a7742";
 
 interface Notificacao {
   id: string;
@@ -57,46 +57,25 @@ function corpoEmail(opts: {
   const rotuloSeguro = escapeHtml(rotuloDocumento);
   const nomeSeguro = nome ? escapeHtml(nome) : "";
   const venceu = diasRestantes !== null && diasRestantes <= 0;
-  const chamada = escapeHtml(textoAlerta(diasRestantes, rotuloDocumento).titulo);
-  const cor = venceu ? "#a81e17" : diasRestantes !== null && diasRestantes <= 7 ? "#9c6009" : VERDE;
+  const corTitulo = venceu ? COR_EMAIL.perigo : diasRestantes !== null && diasRestantes <= 7 ? COR_EMAIL.atencao : COR_EMAIL.tinta;
+  const linha = (rotulo: string, valor: string, borda: boolean) =>
+    `<tr><td style="padding:10px 0;${borda ? `border-bottom:1px solid ${COR_EMAIL.linha};` : ""}font-size:14px;color:${COR_EMAIL.suave};">${rotulo}</td><td style="padding:10px 0;${borda ? `border-bottom:1px solid ${COR_EMAIL.linha};` : ""}font-size:14px;color:${COR_EMAIL.tinta};font-weight:600;text-align:right;">${valor}</td></tr>`;
 
-  return `<!doctype html>
-<html lang="pt-BR"><body style="margin:0;padding:24px;background:#f8f9fc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-  <div style="max-width:520px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden;">
-    <div style="padding:22px 28px;border-bottom:1px solid #e2e8f0;">
-      <span style="font-size:17px;font-weight:800;color:#0f172a;">Doc<span style="color:${VERDE};">Limpo</span></span>
-    </div>
-    <div style="padding:28px;">
-      <p style="margin:0 0 6px;font-size:13px;color:#64748b;">Olá${nomeSeguro ? `, ${nomeSeguro}` : ""}!</p>
-      <h1 style="margin:0 0 16px;font-size:22px;line-height:1.25;color:${cor};font-weight:800;">${chamada}</h1>
-      <table style="width:100%;border-collapse:collapse;margin-bottom:22px;">
-        <tr>
-          <td style="padding:10px 0;border-bottom:1px solid #f1f5f9;font-size:14px;color:#64748b;">Documento</td>
-          <td style="padding:10px 0;border-bottom:1px solid #f1f5f9;font-size:14px;color:#0f172a;font-weight:600;text-align:right;">${rotuloSeguro}</td>
-        </tr>
-        <tr>
-          <td style="padding:10px 0;font-size:14px;color:#64748b;">Vencimento</td>
-          <td style="padding:10px 0;font-size:14px;color:#0f172a;font-weight:600;text-align:right;">${formatarData(dataVencimento)}</td>
-        </tr>
+  return layoutEmail({
+    appUrl: APP_URL,
+    titulo: escapeHtml(textoAlerta(diasRestantes, rotuloDocumento).titulo),
+    corTitulo,
+    corpo: `<p style="margin:0 0 14px;font-size:15px;color:${COR_EMAIL.texto};">Olá${nomeSeguro ? `, ${nomeSeguro}` : ""}!</p>
+      <table role="presentation" style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+        ${linha("Documento", rotuloSeguro, true)}
+        ${linha("Vencimento", formatarData(dataVencimento), false)}
       </table>
-      <p style="margin:0 0 24px;font-size:14px;line-height:1.65;color:#475569;">
-        ${venceu
-          ? "Regularize o quanto antes para evitar multa. No painel você encontra o passo a passo de renovação."
-          : "Ainda dá tempo de renovar sem correria. No painel você encontra o passo a passo, com prazos e custos."}
-      </p>
-      <a href="${APP_URL}/dashboard"
-         style="display:inline-block;background:${VERDE};color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:8px;font-size:14px;font-weight:700;">
-        Ver no DocLimpo
-      </a>
-    </div>
-    <div style="padding:16px 28px;border-top:1px solid #e2e8f0;background:#f8f9fc;">
-      <p style="margin:0;font-size:12px;color:#94a3b8;">
-        Você recebe este aviso porque cadastrou este documento no DocLimpo.
-        <a href="${APP_URL}/conta" style="color:#64748b;">Pausar alertas ou gerenciar a conta</a>.
-      </p>
-    </div>
-  </div>
-</body></html>`;
+      <p style="margin:0 0 24px;font-size:15px;line-height:1.65;color:${COR_EMAIL.texto};">${venceu
+        ? "Regularize o quanto antes para evitar multa. No painel você encontra onde resolver no seu estado."
+        : "Ainda dá tempo de resolver sem correria. No painel você encontra onde renovar ou pagar no seu estado."}</p>`,
+    cta: { texto: "Ver no DocLimpo", url: `${APP_URL}/dashboard` },
+    rodape: `Você recebe este aviso porque cadastrou este documento no DocLimpo. <a href="${APP_URL}/conta" style="color:${COR_EMAIL.suave};">Pausar avisos ou gerenciar a conta</a>.`,
+  });
 }
 
 async function enviarEmail(ctx: Contexto, n: Notificacao, perfil: Perfil, documento: Documento): Promise<Resultado> {
@@ -211,7 +190,7 @@ Deno.serve(async (req) => {
 
     const resendKey = Deno.env.get("RESEND_API_KEY");
     if (!resendKey) return responder({ error: "RESEND_API_KEY não configurada" }, 500);
-    const remetente = Deno.env.get("EMAIL_FROM") ?? "DocLimpo <alertas@docalert.com.br>";
+    const remetente = Deno.env.get("EMAIL_FROM") ?? REMETENTE_PADRAO;
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,

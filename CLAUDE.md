@@ -25,10 +25,20 @@ Projetos Supabase:
 
 React 19 · Vite 8 · TypeScript 6 (strict) · react-router 7 · Supabase JS 2
 
-Estilização é **inline** (`style={{}}`). Tailwind 4 está instalado e importado em
-`index.css`, mas nenhuma tela usa `className` com utilitários. Se for adotar
-Tailwind de verdade, note que a v4 configura por CSS — não existe
-`tailwind.config.js`.
+Estilização por CSS próprio ("Bezel"): tokens e componentes em `src/index.css` (`bz-*`),
+páginas públicas em `src/styles/public-pages.css` e `landing.css` (ambos importados em
+`App.tsx`). Tailwind 4 está importado em `index.css` só para expor os tokens do `@theme`;
+nenhuma tela usa utilitários.
+
+## Marca
+
+Tom "amigo do motorista": carro primeiro (CNH, licenciamento, IPVA, multa), outros
+documentos como "e também". Símbolo = placa Mercosul com check verde (`BrandMark` em
+`Bezel.tsx`; mesmo desenho em `public/favicon.svg` e nos PNGs). Títulos em **Onest**,
+texto em **Inter**, números com `tabular-nums` (sem fonte mono). Verde `#2fd97f` nos
+botões, `#0a6b3e` em links, asfalto `#101614` nas faixas escuras, azul Mercosul só na
+`Placa`. Nada de número de clientes, nota ou depoimento que não exista: prova vem de fonte
+oficial com `verificadoEm` (ex.: `src/data/custo-de-esquecer.ts`, artigos do CTB).
 
 ## Estrutura
 
@@ -36,9 +46,9 @@ Tailwind de verdade, note que a v4 configura por CSS — não existe
 src/
   pages/          Landing_1 · Login (com recuperação de senha) · RedefinirSenha · Onboarding ·
                   Dashboard · DocumentoDetalhe · Conta · Privacy · Termos · ThankYou · NotFound ·
-                  DocumentosHub e DocumentoPublico (/documentos/<tipo>, SEO)
+                  DocumentosHub e DocumentoPublico (/documentos/<slug>, SEO) · Sobre · Seguranca
   components/ui/  AddDocumentModal · EnderecoModal · OndeRenovar · OndeConsultarMultas · RenovarDialog ·
-                  SugestaoData · VeiculoForm · CookieConsent · PublicShell · Bezel
+                  SugestaoData · VeiculoForm · CookieConsent · PublicShell · SiteFooter · Placa · Bezel
   context/        auth-context.ts (contexto) · AuthContext.tsx (provider)
   hooks/          useAuth · usePlano (rpc meu_plano com fallback em plan_type)
   lib/            datas.ts (parse por partes, dias, formatação) · erros.ts · planos.ts (catálogo,
@@ -46,13 +56,17 @@ src/
                   calendario-veicular.ts · multas.ts (prazos do CTB, links por UF) · veiculos.ts (placa) ·
                   push.ts · telefone.ts · documentos-publicos.ts
   data/           calendario-veicular.ts (IPVA/licenciamento por UF e placa) · consulta-multas-uf.ts
-                  (onde consultar multas por UF + SENATRAN/SNE) — só fonte oficial, com `verificadoEm`
+                  (onde consultar multas por UF + SENATRAN/SNE) · custo-de-esquecer.ts (CTB) — só
+                  fonte oficial, com `verificadoEm`
   integrations/supabase/  client.ts (único client, tipado) · types.ts
 public/sw.js      service worker só de push (sem cache)
 supabase/
   migrations/     migrations SQL (aplicadas em produção via MCP; arquivo espelha o que subiu)
   functions/      10 Edge Functions Deno; _shared/notificacoes.ts e _shared/cakto-eventos.ts são puros e testados em Node
+  templates/      e-mails do Supabase Auth com a marca (colados no painel; ver README.md lá)
 scripts/cakto-provisionar.mjs  cria produtos/ofertas/webhook na Cakto (chaves só no shell)
+scripts/prerender.mjs          escreve o HTML das páginas públicas indexáveis em dist/ (roda no build)
+build/page-html.ts             title/description/OG/canonical/JSON-LD por rota, sitemap e robots
 ```
 
 `AuthContext.tsx` só exporta o provider e `hooks/useAuth.ts` só o hook — separados
@@ -149,15 +163,26 @@ Cakto → cakto-webhook (HMAC X-Cakto-Signature) → usuário pelo callback ou p
 ## Páginas legais e suporte
 
 `src/lib/public-content.ts` → `support` é o único interruptor de publicação: enquanto
-`controller` ou `email` forem `null`, a landing mostra "prazo em definição" e `/privacidade`
-e `/termos` exibem o aviso de minuta. Preencha com dados reais antes de lançar; nunca com
-placeholders. A recuperação de senha exige `<APP_URL>/redefinir-senha` na lista de Redirect
+`controller` ou `email` forem `null`, `/privacidade` e `/termos` exibem o aviso de minuta.
+`support.cnpj` (null até o MEI existir) liga a linha "razão social · CNPJ" no rodapé, em
+`/sobre` e no JSON-LD. Preencha com dados reais; nunca com placeholders.
+
+Intenções de URL: só `?documento=<tipo>` e `?plano=<slug>` passam de uma tela a outra
+(`withIntent`, allowlist). `?plano=` vindo de "Escolher <plano>" na landing abre o
+`PlanosModal` no painel com o plano em destaque.
+
+SEO: páginas indexáveis ganham HTML pré-renderizado (`scripts/prerender.mjs`) e JSON-LD
+(`structuredData` em `page-meta.ts`). Por isso Landing, DocumentosHub, DocumentoPublico, Sobre
+e Seguranca são importadas direto em `App.tsx`, não com `lazy`: com `lazy`, o React trocaria o
+HTML pronto pela tela de carregamento. Slug público ≠ tipo do banco (`plano-de-saude` →
+`plano_saude`); slug antigo tem 301 em `vercel.json`. A recuperação de senha exige `<APP_URL>/redefinir-senha` na lista de Redirect
 URLs do painel do Supabase (Authentication → URL Configuration).
 
 ## Variáveis
 
 Frontend em `.env` (ver `.env.example`). Segredos das Edge Functions vão no painel
-do Supabase, nunca no repo. O `.env` já foi versionado por engano no passado —
+do Supabase, nunca no repo. `EMAIL_FROM` = `DocLimpo <alertas@doclimpo.com>` (o padrão do
+código, em `_shared/email.ts`, é o mesmo); os três e-mails das funções usam `layoutEmail()`. O `.env` já foi versionado por engano no passado —
 não reintroduza.
 
 Antes de aplicar `20260816123000_agendar_cron_alertas.sql`, cadastre no Vault:
@@ -171,7 +196,9 @@ select vault.create_secret('<segredo forte>',           'cron_secret');
 
 ```bash
 npm run dev      # servidor local
-npm run build    # tsc -b && vite build — deve passar limpo
+npm run build    # tsc -b && vite build && prerender — deve passar limpo
+npm test         # node:test (lógica, renderização SSR, fluxo público)
+npm run test:build  # confere dist/: metadados, HTML pré-renderizado, JSON-LD, rotas e sitemap
 npm run lint     # eslint — deve passar limpo
 ```
 

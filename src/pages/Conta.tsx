@@ -40,6 +40,7 @@ import { mascararTelefone } from '../lib/telefone'
 import { ehIosSemPwa, pushSubscriptionSchema, suportaPush, urlBase64ToUint8Array } from '../lib/push'
 import { conviteSchema } from '../lib/validacao'
 import { LIMITE_VEICULOS, formatarPlaca, type Veiculo } from '../lib/veiculos'
+import { Placa } from '../components/ui/Placa'
 
 interface PerfilConta extends PerfilEndereco {
   nome: string | null
@@ -796,7 +797,7 @@ export default function Conta() {
               <ul className="conta-membros">
                 {veiculos.map(veiculo => (
                   <li key={veiculo.id}>
-                    <strong>{formatarPlaca(veiculo.placa)}</strong>
+                    <Placa placa={veiculo.placa} size="sm" />
                     <span>{veiculo.uf}{veiculo.apelido ? ` · ${veiculo.apelido}` : ''}</span>
                     <button className="conta-membros__remover" type="button" onClick={() => removerVeiculo(veiculo)} aria-label={`Remover ${formatarPlaca(veiculo.placa)}`}>
                       <Trash2 size={15} strokeWidth={1.75} />

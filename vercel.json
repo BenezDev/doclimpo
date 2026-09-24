@@ -1,5 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
   "routes": [
     {
       "src": "/(.*)",
@@ -94,11 +96,25 @@
     },
     {
       "src": "/documentos/plano_saude/?",
-      "dest": "/documentos/plano_saude/index.html"
+      "status": 301,
+      "headers": {
+        "Location": "/documentos/plano-de-saude"
+      }
+    },
+    {
+      "src": "/documentos/plano-de-saude/?",
+      "dest": "/documentos/plano-de-saude/index.html"
     },
     {
       "src": "/documentos/carteira_trabalho/?",
-      "dest": "/documentos/carteira_trabalho/index.html"
+      "status": 301,
+      "headers": {
+        "Location": "/documentos/carteira-de-trabalho"
+      }
+    },
+    {
+      "src": "/documentos/carteira-de-trabalho/?",
+      "dest": "/documentos/carteira-de-trabalho/index.html"
     },
     {
       "src": "/documentos/garantia/?",
@@ -115,6 +131,14 @@
     {
       "src": "/documentos/multa/?",
       "dest": "/documentos/multa/index.html"
+    },
+    {
+      "src": "/sobre/?",
+      "dest": "/sobre/index.html"
+    },
+    {
+      "src": "/seguranca/?",
+      "dest": "/seguranca/index.html"
     },
     {
       "src": "/404(?:\\.html)?/?",

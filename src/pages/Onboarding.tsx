@@ -10,7 +10,7 @@ import { useTheme } from '../hooks/useTheme'
 import { supabase } from '../integrations/supabase/client'
 import { interpretarErro, textoDaFalha, type FalhaAoSalvar } from '../lib/erros'
 import { documentoSchema } from '../lib/validacao'
-import { documentIntent } from '../lib/public-content'
+import { documentIntent, withIntent } from '../lib/public-content'
 import { SugestaoData, type ExtraVeicular } from '../components/ui/SugestaoData'
 
 const TIPOS = [
@@ -37,6 +37,8 @@ export default function Onboarding() {
   const { dark, toggleTheme } = useTheme()
   const [step, setStep] = useState(1)
   const [tipo, setTipo] = useState(() => documentIntent(search))
+  // Leva ?plano= adiante: o painel abre os planos com o escolhido na landing.
+  const painel = withIntent('/dashboard', search)
   const [apelido, setApelido] = useState('')
   const [data, setData] = useState('')
   const [extra, setExtra] = useState<ExtraVeicular | undefined>(undefined)
@@ -148,7 +150,7 @@ export default function Onboarding() {
                   Continuar
                 </Button>
               </div>
-              <button className="onboarding-skip" type="button" onClick={() => navigate('/dashboard')}>Pular por agora</button>
+              <button className="onboarding-skip" type="button" onClick={() => navigate(painel)}>Pular por agora</button>
             </motion.section>
           )}
 
@@ -200,7 +202,7 @@ export default function Onboarding() {
                   <div>
                     <p>{textoDaFalha(falha)}</p>
                     {falha.tipo === 'limite_plano' && (
-                      <Button variant="secondary" size="sm" onClick={() => navigate('/dashboard')}>Ver meus documentos</Button>
+                      <Button variant="secondary" size="sm" onClick={() => navigate(painel)}>Ver meus documentos</Button>
                     )}
                   </div>
                 </div>
@@ -224,7 +226,7 @@ export default function Onboarding() {
                 <BellRing size={17} strokeWidth={1.75} aria-hidden="true" />
                 <p>Alertas configurados: <strong className="bz-data">90 · 30 · 7 · 1</strong> dia antes.</p>
               </div>
-              <Button variant="primary" size="lg" onClick={() => navigate('/dashboard')} icon={<ArrowRight size={17} strokeWidth={1.75} />}>
+              <Button variant="primary" size="lg" onClick={() => navigate(painel)} icon={<ArrowRight size={17} strokeWidth={1.75} />}>
                 Abrir meu painel
               </Button>
             </motion.section>

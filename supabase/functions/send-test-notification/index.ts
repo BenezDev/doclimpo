@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { corsHeaders } from "../_shared/cors.ts";
+import { COR_EMAIL, REMETENTE_PADRAO, layoutEmail } from "../_shared/email.ts";
 import { carregarServidorPush, enviarPush } from "../_shared/push.ts";
 
 // Envio de teste pelo próprio usuário (JWT do cliente; RLS vale em tudo).
@@ -78,10 +79,15 @@ Deno.serve(async (req) => {
         method: "POST",
         headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          from: Deno.env.get("EMAIL_FROM") ?? "DocLimpo <alertas@docalert.com.br>",
+          from: Deno.env.get("EMAIL_FROM") ?? REMETENTE_PADRAO,
           to: [user.email],
           subject: "DocLimpo — notificação de teste",
-          html: `<p>Está funcionando. 🎉</p><p>Se você recebeu este email, os alertas do DocLimpo estão configurados corretamente.</p>`,
+          html: layoutEmail({
+            appUrl: Deno.env.get("APP_URL") ?? "https://www.doclimpo.com",
+            titulo: "Está funcionando.",
+            corpo: `<p style="margin:0 0 24px;font-size:15px;line-height:1.65;color:${COR_EMAIL.texto};">Se você recebeu este e-mail, os avisos do DocLimpo chegam na sua caixa de entrada. Salve este endereço nos seus contatos para eles não caírem no spam.</p>`,
+            rodape: "Você pediu este e-mail de teste na sua conta do DocLimpo.",
+          }),
         }),
       });
       if (!envio.ok) {

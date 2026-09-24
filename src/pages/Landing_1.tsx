@@ -1,68 +1,61 @@
 import {
   ArrowRight,
   ArrowUpRight,
-  Ban,
+  BellRing,
   Check,
-  CheckCircle2,
   ChevronDown,
-  Clock3,
-  FileText,
+  ExternalLink,
+  FileX2,
+  KeyRound,
   Mail,
   MapPin,
-  PencilLine,
   ShieldCheck,
   Siren,
 } from 'lucide-react'
 import { useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Brand, DocumentGlyph, StatusPill, ThemeToggle } from '../components/ui/Bezel'
+import { BrandMark, Brand, DocumentGlyph, StatusPill, ThemeToggle } from '../components/ui/Bezel'
 import { ActionLink } from '../components/ui/ActionLink'
+import { Placa } from '../components/ui/Placa'
+import { SiteFooter } from '../components/ui/SiteFooter'
+import { CUSTO_DE_ESQUECER } from '../data/custo-de-esquecer'
 import { useTheme } from '../hooks/useTheme'
-import { JANELAS_ALERTA, LIMITE_DOCUMENTOS_FREE, PLANOS, formatarPreco } from '../lib/planos'
-import { formatarData, hojeISO, somarDias, statusPorDias } from '../lib/datas'
-import { faqs, support, useCases, withDocumentIntent } from '../lib/public-content'
-import '../styles/landing.css'
+import { JANELAS_ALERTA, LIMITE_DOCUMENTOS_FREE, PLANOS, formatarPreco, type PlanoSlug } from '../lib/planos'
+import { faqs, withIntent } from '../lib/public-content'
 
-const sampleDocuments = [
-  { type: 'cnh', title: 'CNH', days: 5 },
-  { type: 'multa', title: 'Multa · radar', days: 12 },
-  { type: 'crlv', title: 'CRLV · carro', days: 51 },
-  { type: 'passaporte', title: 'Passaporte', days: 160 },
-].map(document => ({ ...document, date: formatarData(somarDias(hojeISO(), document.days)), status: statusPorDias(document.days).id }))
+const janelas = `${JANELAS_ALERTA.slice(0, -1).join(', ')} e ${JANELAS_ALERTA[JANELAS_ALERTA.length - 1]}`
 
-const nextAlert = sampleDocuments
-  .map(document => ({ title: document.title, window: JANELAS_ALERTA.find(janela => janela < document.days) }))
-  .find(item => item.window !== undefined)
+const canaisOficiais = ['Detran do seu estado', 'gov.br', 'Portal SENATRAN', 'SNE', 'Polícia Federal']
 
-const facts = [
-  { icon: Mail, text: 'Avisos em 90, 30, 7 e 1 dia' },
-  { icon: Check, text: `${LIMITE_DOCUMENTOS_FREE} documento grátis, sem cartão` },
-  { icon: FileText, text: 'Sem foto, sem upload' },
-  { icon: ShieldCheck, text: 'Cancele quando quiser' },
+const passos = [
+  { titulo: 'Cadastre em um minuto', texto: 'Escolha o documento e informe a data de vencimento. A placa é opcional. Não pedimos foto nem CPF.' },
+  { titulo: 'O DocLimpo conta os dias', texto: `A partir da data, os avisos ficam programados para ${janelas} dias antes. Você não precisa fazer mais nada.` },
+  { titulo: 'O aviso chega, você resolve', texto: 'Cada aviso traz o prazo que falta e o link do órgão certo para renovar ou pagar, no seu estado.' },
 ]
 
-const steps = [
-  { title: 'Cadastre o documento', text: 'Escolha o tipo, informe a data de vencimento e, se quiser, um apelido. Não precisa enviar foto nem cópia.' },
-  { title: 'O sistema calcula as janelas', text: 'A partir da data, o DocLimpo programa os avisos de 90, 30, 7 e 1 dia antes do vencimento.' },
-  { title: 'O e-mail chega antes de vencer', text: 'Cada aviso traz o prazo restante e o link para o painel, onde você vê onde renovar o documento.' },
+const tambem = ['Passaporte', 'RG e CIN', 'Seguro auto', 'Plano de saúde', 'Garantia', 'Contrato e aluguel', 'Exame periódico']
+
+const naoPedimos = [
+  { icon: FileX2, titulo: 'Sem foto do documento', texto: 'Para avisar, basta o tipo e a data. Nada de upload, nada de número do documento.' },
+  { icon: KeyRound, titulo: 'Sem CPF e sem senha do gov.br', texto: 'Você entra no órgão oficial com o seu login. O DocLimpo só mostra o caminho.' },
+  { icon: ShieldCheck, titulo: 'Cartão fora do DocLimpo', texto: 'O pagamento da assinatura é feito na Cakto. Os dados do cartão nunca passam por aqui.' },
 ]
 
-const features = [
-  { icon: Mail, title: 'Alertas por e-mail e no navegador', text: 'Avisos em 90, 30, 7 e 1 dia antes do vencimento por e-mail. Nos planos pagos, também como notificação no navegador ou celular.' },
-  { icon: MapPin, title: 'Onde renovar, por documento', text: 'Cada documento mostra o órgão responsável. Com seu CEP, opcional, aparece a unidade mais próxima.' },
-  { icon: Siren, title: 'Multa: avisa antes de perder o desconto', text: 'Cadastre a data da notificação: o DocLimpo calcula o prazo legal de defesa ou recurso, avisa 30, 7 e 1 dia antes e mostra onde consultar e pagar (Detran, SENATRAN, SNE com 40% de desconto).' },
-  { icon: PencilLine, title: 'Apelido e data editáveis', text: 'Dê um nome ao documento e ajuste a data quando renovar.' },
-  { icon: CheckCircle2, title: 'Marcar como renovado', text: 'Renovou? Marque o documento e ele sai da lista de vencimentos.' },
-  { icon: ShieldCheck, title: 'Só os dados necessários', text: 'Tipo, data e apelido. Sem foto e sem o número do documento.' },
-  { icon: Ban, title: 'Não renova nem paga por você', text: 'A renovação, as taxas e o pagamento de multas continuam nos canais oficiais. O DocLimpo avisa e mostra o link; o resto é seu.', limit: true },
-]
+function dataDeHoje() {
+  return new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())
+}
 
 export default function Landing() {
   const { hash, search } = useLocation()
   const { dark, toggleTheme } = useTheme()
-  const cadastro = withDocumentIntent('/cadastro', search)
-  const login = withDocumentIntent('/login', search)
-  const supportReady = Boolean(support.email && support.responseTime)
+  const cadastro = withIntent('/cadastro', search)
+  const login = withIntent('/login', search)
+  const cadastroCom = (chave: 'documento' | 'plano', valor: string) => {
+    const params = new URLSearchParams(search)
+    params.set(chave, valor)
+    return withIntent('/cadastro', `?${params}`)
+  }
+  const escolherPlano = (slug: PlanoSlug) => cadastroCom('plano', slug)
 
   useEffect(() => {
     if (hash) document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: 'instant' })
@@ -74,15 +67,15 @@ export default function Landing() {
       <header className="bz-topbar">
         <div className="bz-container bz-topbar__inner">
           <Link className="brand-link" to="/" aria-label="DocLimpo — início"><Brand /></Link>
-          <nav className="landing-nav" aria-label="Seções da página">
+          <nav className="site-nav" aria-label="Seções da página">
             <a href="#como-funciona">Como funciona</a>
-            <a href="#casos">Casos</a>
+            <Link to="/documentos">Documentos</Link>
             <a href="#planos">Planos</a>
             <a href="#perguntas">Perguntas</a>
           </nav>
           <div className="bz-topbar__actions">
             <ThemeToggle dark={dark} onToggle={toggleTheme} />
-            <ActionLink variant="secondary" to={login}>Entrar</ActionLink>
+            <ActionLink variant="ghost" to={login}>Entrar</ActionLink>
             <ActionLink variant="primary" to={cadastro}>Começar grátis</ActionLink>
           </div>
         </div>
@@ -90,134 +83,194 @@ export default function Landing() {
 
       <main id="conteudo">
         <section className="bz-container landing-hero" aria-labelledby="titulo">
-          <div>
-            <span className="landing-eyebrow">Alertas de vencimento por e-mail</span>
-            <h1 id="titulo">Saiba antes que o documento vença.</h1>
+          <div className="landing-hero__copy">
+            <span className="landing-eyebrow">Para quem dirige</span>
+            <h1 id="titulo">CNH, IPVA e multa em dia. <em>Sem susto.</em></h1>
             <p className="landing-hero__lead">
-              Cadastre CNH, CRLV, IPVA, multas de trânsito, passaporte e outros documentos com a data de vencimento.
-              O DocLimpo envia um e-mail 90, 30, 7 e 1 dia antes.
+              O DocLimpo avisa {janelas} dias antes de vencer e mostra onde resolver no seu estado.
+              Começa com um documento grátis.
             </p>
             <div className="landing-hero__actions">
-              <ActionLink variant="primary" size="lg" to={cadastro}>Começar grátis<ArrowRight size={18} strokeWidth={1.75} aria-hidden="true" /></ActionLink>
-              <ActionLink variant="secondary" size="lg" to={login}>Entrar</ActionLink>
+              <ActionLink variant="primary" size="lg" to={cadastro}>Começar grátis<ArrowRight size={18} strokeWidth={2} aria-hidden="true" /></ActionLink>
+              <a className="bz-button bz-button--secondary bz-button--lg" href="#como-funciona">Ver como funciona</a>
             </div>
+            <ul className="landing-trust" aria-label="Condições">
+              <li><Check size={15} strokeWidth={2.25} aria-hidden="true" />Sem cartão</li>
+              <li><Check size={15} strokeWidth={2.25} aria-hidden="true" />Sem foto do documento</li>
+              <li><Check size={15} strokeWidth={2.25} aria-hidden="true" />Cancele quando quiser</li>
+            </ul>
           </div>
 
-          <div className="landing-demo" aria-label="Demonstração do painel com dados ilustrativos">
-            <div className="landing-demo__card">
-              <div className="landing-demo__bar">
-                <div>
-                  <strong>Meus documentos</strong>
-                  <span>{sampleDocuments.length} documentos acompanhados</span>
+          <div className="landing-phone" role="img" aria-label="Ilustração: celular recebendo avisos do DocLimpo sobre a CNH e o licenciamento">
+            <div className="landing-phone__device" aria-hidden="true">
+              <div className="landing-phone__screen">
+                <span className="landing-phone__clock">9:41</span>
+                <span className="landing-phone__date">{dataDeHoje()}</span>
+                <div className="landing-notif">
+                  <BrandMark className="landing-notif__icon" />
+                  <div>
+                    <span className="landing-notif__top"><span>DocLimpo</span><span>agora</span></span>
+                    <strong>Sua CNH vence em 30 dias</strong>
+                    <span>Dá tempo de renovar sem correria. Veja onde fazer no seu estado.</span>
+                  </div>
                 </div>
-                <span className="landing-demo__tag">Demonstração · dados ilustrativos</span>
+                <div className="landing-notif landing-notif--email">
+                  <Mail className="landing-notif__icon landing-notif__icon--mail" size={18} strokeWidth={2} />
+                  <div>
+                    <span className="landing-notif__top"><span>E-mail · DocLimpo</span><span>9:00</span></span>
+                    <strong>Licenciamento do carro: faltam 7 dias</strong>
+                    <span>Pague e baixe o CRLV digital no Detran.</span>
+                  </div>
+                </div>
               </div>
-              <ul className="landing-demo__list">
-                {sampleDocuments.map(document => (
-                  <li className="landing-demo__row" key={document.title}>
-                    <DocumentGlyph type={document.type} />
-                    <div>
-                      <span className="landing-demo__name">{document.title}</span>
-                      <span className="landing-demo__date">Vence em {document.date}</span>
-                    </div>
-                    <div className="landing-demo__meta">
-                      <span className="landing-demo__days">{document.days} dias</span>
-                      <StatusPill status={document.status} />
-                    </div>
-                  </li>
-                ))}
-              </ul>
-              {nextAlert && (
-                <div className="landing-demo__foot">
-                  <Mail size={14} strokeWidth={1.75} aria-hidden="true" />
-                  Próximo e-mail: {nextAlert.title}, {nextAlert.window} {nextAlert.window === 1 ? 'dia' : 'dias'} antes do vencimento.
-                </div>
-              )}
+            </div>
+            <div className="landing-phone__card" aria-hidden="true">
+              <Placa placa="DOC1L25" />
+              <div className="landing-phone__line"><span>Licenciamento</span><StatusPill status="critico" label="7 dias" /></div>
+              <div className="landing-phone__line"><span>IPVA</span><StatusPill status="vigente" label="em dia" /></div>
             </div>
           </div>
         </section>
 
-        <section className="landing-facts" aria-label="Resumo do serviço">
-          <ul className="bz-container landing-facts__list">
-            {facts.map(fact => (
-              <li key={fact.text}><fact.icon size={18} strokeWidth={1.75} aria-hidden="true" />{fact.text}</li>
-            ))}
-          </ul>
+        <section className="landing-oficial" aria-labelledby="oficial-titulo">
+          <div className="bz-container landing-oficial__inner">
+            <span id="oficial-titulo">Leva você direto aos canais oficiais</span>
+            <ul>{canaisOficiais.map(canal => <li key={canal}>{canal}</li>)}</ul>
+          </div>
+        </section>
+
+        <section className="landing-section landing-section--asfalto" id="custo" aria-labelledby="custo-titulo">
+          <div className="bz-container">
+            <div className="landing-section__header">
+              <span className="landing-kicker">Por que avisar antes</span>
+              <h2 id="custo-titulo">Esquecer a data sai caro.</h2>
+              <p>O que o Código de Trânsito prevê quando um prazo do carro passa:</p>
+            </div>
+            <ul className="landing-custos">
+              {CUSTO_DE_ESQUECER.map(item => (
+                <li className="landing-custo" key={item.tipo}>
+                  <DocumentGlyph type={item.tipo} />
+                  <h3>{item.titulo}</h3>
+                  <p>{item.consequencia}</p>
+                  <a href={item.fonte} target="_blank" rel="noopener noreferrer">{item.artigo}<ExternalLink size={12} strokeWidth={2} aria-hidden="true" /></a>
+                </li>
+              ))}
+            </ul>
+            <div className="landing-custo__cta">
+              <ActionLink variant="primary" size="lg" to={cadastroCom('documento', 'cnh')}>Acompanhar minha CNH grátis<ArrowRight size={18} strokeWidth={2} aria-hidden="true" /></ActionLink>
+            </div>
+          </div>
         </section>
 
         <section className="landing-section" id="como-funciona" aria-labelledby="como-funciona-titulo">
           <div className="bz-container">
             <div className="landing-section__header">
-              <span className="bz-micro">Como funciona</span>
-              <h2 id="como-funciona-titulo">Três passos. Depois, o aviso chega sozinho.</h2>
-              <p>Você informa a data uma vez. O DocLimpo cuida das janelas e do e-mail.</p>
+              <span className="landing-kicker">Como funciona</span>
+              <h2 id="como-funciona-titulo">Você cadastra uma vez. O aviso chega sozinho.</h2>
             </div>
-            <ol className="landing-grid">
-              {steps.map((step, index) => (
-                <li className="landing-card" key={step.title}>
-                  <span className="landing-step__number" aria-hidden="true">{index + 1}</span>
-                  <h3>{step.title}</h3>
-                  <p>{step.text}</p>
+            <ol className="landing-passos">
+              {passos.map((passo, index) => (
+                <li key={passo.titulo}>
+                  <span className="landing-passos__numero" aria-hidden="true">{index + 1}</span>
+                  <h3>{passo.titulo}</h3>
+                  <p>{passo.texto}</p>
                 </li>
               ))}
             </ol>
           </div>
         </section>
 
-        <section className="landing-section landing-section--divided" id="casos" aria-labelledby="casos-titulo">
+        <section className="landing-section landing-section--surface" aria-labelledby="recursos-titulo">
           <div className="bz-container">
-            <div className="landing-section__header">
-              <span className="bz-micro">Casos</span>
-              <h2 id="casos-titulo">Documentos que vencem enquanto a vida acontece.</h2>
-              <p>Comece pelo que mais importa para você. Cada caso abre o cadastro já com o tipo escolhido.</p>
+            <h2 className="bz-sr-only" id="recursos-titulo">O que o DocLimpo faz</h2>
+
+            <article className="landing-row">
+              <div className="landing-row__copy">
+                <span className="landing-kicker">Seu carro pela placa</span>
+                <h3>IPVA e licenciamento no calendário do seu estado.</h3>
+                <p>Cadastre a placa e a UF. O DocLimpo usa o final da placa para sugerir as datas de IPVA e licenciamento, quando o estado já publicou o calendário, e reúne os links oficiais para consultar multas.</p>
+                <Link className="landing-row__link" to={cadastroCom('documento', 'ipva')}>Acompanhar meu IPVA<ArrowUpRight size={16} aria-hidden="true" /></Link>
+              </div>
+              <div className="landing-row__visual landing-carro" aria-hidden="true">
+                <Placa placa="DOC1L25" size="lg" />
+                <ul>
+                  <li><DocumentGlyph type="ipva" size="sm" /><span>IPVA · cota única</span><StatusPill status="vigente" label="em dia" /></li>
+                  <li><DocumentGlyph type="crlv" size="sm" /><span>Licenciamento</span><StatusPill status="atencao" label="30 dias" /></li>
+                  <li><DocumentGlyph type="multa" size="sm" /><span>Multas no Detran e na SENATRAN</span><ExternalLink size={14} /></li>
+                </ul>
+              </div>
+            </article>
+
+            <article className="landing-row landing-row--reverse">
+              <div className="landing-row__copy">
+                <span className="landing-kicker">Multa com prazo contado</span>
+                <h3>Não perca o prazo de defesa nem o desconto.</h3>
+                <p>Cadastre a data da notificação. O DocLimpo calcula o prazo mínimo que o CTB garante para defesa ou indicação do condutor, avisa antes de acabar e mostra onde consultar e pagar, inclusive a adesão ao SNE, que pode dar 40% de desconto.</p>
+                <Link className="landing-row__link" to={cadastroCom('documento', 'multa')}>Acompanhar minha multa<ArrowUpRight size={16} aria-hidden="true" /></Link>
+              </div>
+              <div className="landing-row__visual landing-linha" aria-hidden="true">
+                <div className="landing-linha__passo"><Siren size={18} /><div><strong>Notificação recebida</strong><span>dia 0</span></div></div>
+                <div className="landing-linha__passo landing-linha__passo--alerta"><BellRing size={18} /><div><strong>Aviso do DocLimpo</strong><span>7 e 1 dia antes do prazo</span></div></div>
+                <div className="landing-linha__passo"><Check size={18} /><div><strong>Fim do prazo de defesa</strong><span>pelo menos 30 dias</span></div></div>
+              </div>
+            </article>
+
+            <article className="landing-row">
+              <div className="landing-row__copy">
+                <span className="landing-kicker">Avisos onde você vê</span>
+                <h3>No e-mail sempre. No celular, se quiser.</h3>
+                <p>Todo plano recebe os avisos por e-mail. Nos planos pagos, o mesmo aviso chega também como notificação no celular ou no computador. Cada documento mostra o órgão responsável e, com o seu CEP, a unidade mais perto.</p>
+              </div>
+              <div className="landing-row__visual landing-avisos" aria-hidden="true">
+                <div className="landing-aviso"><Mail size={18} /><div><strong>Seu passaporte vence em 90 dias</strong><span>E-mail · Polícia Federal: agende pelo site</span></div></div>
+                <div className="landing-aviso"><BellRing size={18} /><div><strong>Seguro do carro: faltam 7 dias</strong><span>Notificação · converse com sua seguradora</span></div></div>
+                <div className="landing-aviso"><MapPin size={18} /><div><strong>Onde renovar a CNH</strong><span>Detran do seu estado · unidade mais perto do seu CEP</span></div></div>
+              </div>
+            </article>
+
+            <div className="landing-tambem">
+              <div>
+                <span className="landing-kicker">E também</span>
+                <h3>O resto da vida cabe no mesmo painel.</h3>
+                <p>Do plano MEI saem alvará, certidões e DAS. No plano Família, até 4 pessoas, cada uma com a própria conta.</p>
+              </div>
+              <ul>{tambem.map(item => <li key={item}>{item}</li>)}</ul>
             </div>
-            <div className="landing-grid landing-grid--casos">
-              {useCases.map(item => (
-                <article className="landing-card case-card" key={item.type}>
-                  <div className="case-card__label"><DocumentGlyph type={item.type} /><span className="bz-micro">{item.label}</span></div>
-                  <h3>{item.title}</h3>
-                  <p>{item.context}</p>
-                  <p>{item.action}</p>
-                  <Link className="case-card__cta" to={`/cadastro?documento=${item.type}`}>{item.cta}<ArrowUpRight size={16} aria-hidden="true" /></Link>
-                </article>
-              ))}
-            </div>
-            <p className="landing-note">Cenários ilustrativos de uso. Não são depoimentos de clientes nem resultados medidos.</p>
           </div>
         </section>
 
-        <section className="landing-section landing-section--surface" aria-labelledby="funcoes-titulo">
+        <section className="landing-section" aria-labelledby="privacidade-titulo">
           <div className="bz-container">
             <div className="landing-section__header">
-              <span className="bz-micro">O que o DocLimpo faz e não faz</span>
-              <h2 id="funcoes-titulo">Avisa com antecedência. O resto continua com você.</h2>
+              <span className="landing-kicker">Privacidade</span>
+              <h2 id="privacidade-titulo">A gente não pede o que não precisa.</h2>
             </div>
-            <div className="landing-grid landing-grid--features">
-              {features.map(feature => (
-                <article className={`landing-card${feature.limit ? ' landing-card--limit' : ''}`} key={feature.title}>
-                  <feature.icon size={20} strokeWidth={1.75} aria-hidden="true" />
-                  <h3>{feature.title}</h3>
-                  <p>{feature.text}</p>
-                </article>
+            <ul className="landing-promessas">
+              {naoPedimos.map(item => (
+                <li key={item.titulo}>
+                  <item.icon size={22} strokeWidth={1.75} aria-hidden="true" />
+                  <h3>{item.titulo}</h3>
+                  <p>{item.texto}</p>
+                </li>
               ))}
-            </div>
+            </ul>
+            <Link className="landing-row__link" to="/seguranca">Como protegemos seus dados<ArrowUpRight size={16} aria-hidden="true" /></Link>
           </div>
         </section>
 
-        <section className="landing-section" id="planos" aria-labelledby="planos-titulo">
+        <section className="landing-section landing-section--surface" id="planos" aria-labelledby="planos-titulo">
           <div className="bz-container">
             <div className="landing-section__header">
-              <span className="bz-micro">Planos</span>
-              <h2 id="planos-titulo">Comece grátis. Assine quando precisar de mais.</h2>
-              <p>Um documento é grátis, sem cartão. Para acompanhar mais, escolha um plano mensal. Sem fidelidade: cancele quando quiser.</p>
+              <span className="landing-kicker">Planos</span>
+              <h2 id="planos-titulo">Comece grátis. Assine quando quiser mais.</h2>
+              <p>Sem fidelidade: cancele quando quiser, direto na sua conta.</p>
             </div>
             <div className="landing-free" id="gratuito">
               <div>
-                <span className="bz-micro">Plano gratuito</span>
-                <h3>Gratuito <span className="bz-data">{formatarPreco(0)}</span></h3>
-                <p>{LIMITE_DOCUMENTOS_FREE} documento ativo, alertas por e-mail e onde renovar. Sem cartão.</p>
+                <h3>Grátis <span className="bz-data">{formatarPreco(0)}</span></h3>
+                <p>{LIMITE_DOCUMENTOS_FREE} documento com avisos por e-mail e onde renovar. Sem cartão.</p>
               </div>
-              <ActionLink variant="primary" size="md" to={cadastro}>Começar grátis<ArrowRight size={16} aria-hidden="true" /></ActionLink>
+              <ActionLink variant="secondary" size="md" to={cadastro}>Começar grátis<ArrowRight size={16} aria-hidden="true" /></ActionLink>
             </div>
             <div className="planos-grid landing-planos" role="list" aria-label="Planos pagos">
               {PLANOS.map(plano => (
@@ -227,48 +280,31 @@ export default function Landing() {
                   <p className="plano-card__descricao">{plano.descricao}</p>
                   <div className="plano-card__preco"><strong className="bz-data">{formatarPreco(plano.precoCentavos)}</strong><span>/mês</span></div>
                   <ul className="plano-card__lista">
-                    {plano.beneficios.map(item => <li key={item}><Check size={14} strokeWidth={2} aria-hidden="true" />{item}</li>)}
+                    {plano.beneficios.map(item => <li key={item}><Check size={14} strokeWidth={2.25} aria-hidden="true" />{item}</li>)}
                   </ul>
-                  <ActionLink variant={plano.destaque ? 'primary' : 'secondary'} size="md" to={cadastro}>Começar grátis<ArrowRight size={16} aria-hidden="true" /></ActionLink>
+                  <ActionLink variant={plano.destaque ? 'primary' : 'secondary'} size="md" to={escolherPlano(plano.slug)}>Escolher {plano.nome}<ArrowRight size={16} aria-hidden="true" /></ActionLink>
                 </article>
               ))}
             </div>
-            <p className="planos-nota">Pagamento pela Cakto. Desistência em até 7 dias com devolução integral (CDC). Detalhes nos <Link to="/termos">termos de uso</Link>.</p>
+            <p className="planos-nota">Você cria a conta e assina logo depois, pela Cakto, no cartão ou no Pix Automático. Desistência em até 7 dias com devolução integral. Detalhes nos <Link to="/termos">termos de uso</Link>.</p>
           </div>
         </section>
 
-        <section className="landing-section landing-section--surface" id="perguntas" aria-labelledby="perguntas-titulo">
+        <section className="landing-section" id="perguntas" aria-labelledby="perguntas-titulo">
           <div className="bz-container landing-faq">
             <div className="landing-section__header">
-              <span className="bz-micro">Perguntas</span>
-              <h2 id="perguntas-titulo">O essencial antes de começar.</h2>
+              <span className="landing-kicker">Perguntas frequentes</span>
+              <h2 id="perguntas-titulo">Antes de começar.</h2>
             </div>
             <div className="faq-list">
               {faqs.map((item, index) => (
                 <details className="faq-item" key={item.question} id={`pergunta-${index + 1}`}>
-                  <summary><span className="faq-number">0{index + 1}</span><span>{item.question}</span><ChevronDown size={18} aria-hidden="true" /></summary>
-                  <div className="faq-answer"><p>{item.answer}</p>{index === faqs.length - 1 && <Link to="/privacidade">Ler a política de privacidade</Link>}</div>
+                  <summary><span>{item.question}</span><ChevronDown size={18} aria-hidden="true" /></summary>
+                  <div className="faq-answer"><p>{item.answer}</p></div>
                 </details>
               ))}
             </div>
-          </div>
-        </section>
-
-        <section className="landing-section" id="atendimento" aria-labelledby="atendimento-titulo">
-          <div className="bz-container support-strip">
-            <Clock3 size={23} strokeWidth={1.5} aria-hidden="true" />
-            <div>
-              <span className="bz-micro">Atendimento</span>
-              <h2 id="atendimento-titulo">{supportReady ? `Primeira resposta em ${support.responseTime}.` : 'Prazo de resposta em definição.'}</h2>
-              <p>
-                {supportReady
-                  ? 'Prazo para o primeiro retorno, não para a resolução. Conte o que aconteceu sem enviar senhas ou cópias de documentos.'
-                  : 'O canal oficial e o prazo de atendimento serão informados aqui após confirmação. Enquanto isso, consulte as perguntas acima.'}
-              </p>
-            </div>
-            {support.email
-              ? <a className="text-link" href={`mailto:${support.email}`}>{support.email}</a>
-              : <a className="text-link" href="#perguntas">Consultar perguntas<ArrowUpRight size={16} aria-hidden="true" /></a>}
+            <p className="landing-faq__mais">Ficou alguma dúvida? <Link to="/sobre#contato">Fale com a gente</Link>.</p>
           </div>
         </section>
 
@@ -276,25 +312,14 @@ export default function Landing() {
           <div className="bz-container landing-cta__panel">
             <div>
               <h2 id="cta-titulo">Comece pelo documento que não pode vencer.</h2>
-              <p>Um documento grátis, avisos por e-mail, sem cartão.</p>
+              <p>Um documento grátis, avisos por e-mail e nenhum cartão.</p>
             </div>
-            <ActionLink variant="primary" size="lg" to={cadastro}>Começar grátis<ArrowRight size={18} strokeWidth={1.75} aria-hidden="true" /></ActionLink>
+            <ActionLink variant="primary" size="lg" to={cadastro}>Começar grátis<ArrowRight size={18} strokeWidth={2} aria-hidden="true" /></ActionLink>
           </div>
         </section>
       </main>
 
-      <footer className="landing-footer">
-        <div className="bz-container landing-footer__inner">
-          <Link className="brand-link" to="/" aria-label="DocLimpo — início"><Brand /></Link>
-          <nav className="landing-footer__links" aria-label="Rodapé">
-            <Link to="/documentos">Documentos</Link>
-            <Link to="/privacidade">Privacidade</Link>
-            <Link to="/termos">Termos</Link>
-            {support.email && <a href={`mailto:${support.email}`}>{support.email}</a>}
-          </nav>
-          <span className="landing-footer__meta">© {new Date().getFullYear()} DocLimpo</span>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   )
 }

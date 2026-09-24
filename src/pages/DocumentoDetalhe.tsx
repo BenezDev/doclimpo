@@ -365,7 +365,7 @@ export default function DocumentoDetalhe() {
           <div className="detail-priority-column">
             <section className={`detail-countdown detail-countdown--${status.id}`}>
               <span className="bz-micro">{days < 0 ? 'Prazo ultrapassado' : 'Tempo restante'}</span>
-              <div className="detail-countdown__value bz-data">{Math.abs(days).toString().padStart(2, '0')}<span>dias</span></div>
+              <div className="detail-countdown__value bz-data">{Math.abs(days)}<span>dias</span></div>
               <div className="detail-countdown__date">
                 <span>Vencimento</span>
                 <time dateTime={document.data_vencimento}>{formatarDataLonga(document.data_vencimento)}</time>
@@ -409,7 +409,7 @@ export default function DocumentoDetalhe() {
               <div className="detail-alert-list">
                 {JANELAS_ALERTA.map(window => (
                   <div className="detail-alert-list__row" key={window}>
-                    <span className="bz-data">D-{window.toString().padStart(2, '0')}</span>
+                    <span className="bz-data">D-{window}</span>
                     <p>{window === 1 ? '1 dia antes' : `${window} dias antes`}</p>
                     <strong>{canaisDoPlano(plano).map(canal => ROTULO_CANAL[canal]).join(' · ')}</strong>
                   </div>
@@ -433,7 +433,7 @@ export default function DocumentoDetalhe() {
               {guide.steps.map((step, index) => (
                 <motion.article className="detail-guide__step" key={step.title} {...(reduceMotion ? {} : stagger(index))}>
                   <div className="detail-guide__rail">
-                    <span className="bz-data">{(index + 1).toString().padStart(2, '0')}</span>
+                    <span className="bz-data">{(index + 1)}</span>
                     {index < guide.steps.length - 1 && <i />}
                   </div>
                   <div className="detail-guide__content">

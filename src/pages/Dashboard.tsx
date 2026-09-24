@@ -32,8 +32,10 @@ import { useTheme } from '../hooks/useTheme'
 import { supabase } from '../integrations/supabase/client'
 import { precisaPedirEndereco, type PerfilEndereco } from '../lib/endereco'
 import { linksConsultaMultas } from '../lib/multas'
-import { ehPago, podeAdicionarDocumento, rotuloPlano } from '../lib/planos'
-import { LIMITE_VEICULOS, formatarPlaca, type Veiculo } from '../lib/veiculos'
+import { ehPago, podeAdicionarDocumento, rotuloPlano, type PlanoSlug } from '../lib/planos'
+import { LIMITE_VEICULOS, type Veiculo } from '../lib/veiculos'
+import { Placa } from '../components/ui/Placa'
+import { planoIntent } from '../lib/public-content'
 import { diasRestantes, formatarData, statusPorDias } from '../lib/datas'
 import { bezelSpring, stagger } from '../lib/motion'
 
@@ -72,6 +74,8 @@ function progressFor(dias: number) {
   return Math.max(8, Math.round(((90 - dias) / 90) * 100))
 }
 
+const quantosDias = (dias: number) => `${Math.abs(dias)} ${Math.abs(dias) === 1 ? 'dia' : 'dias'}`
+
 export default function Dashboard() {
   const { user, signOut } = useAuth()
   const { dark, toggleTheme } = useTheme()
@@ -91,7 +95,10 @@ export default function Dashboard() {
   const [perfilEndereco, setPerfilEndereco] = useState<PerfilEndereco | null>(null)
   const [mostrarEndereco, setMostrarEndereco] = useState(false)
   const { plano, recarregar: recarregarPlano } = usePlano()
-  const [mostrarPlanos, setMostrarPlanos] = useState(false)
+  // Veio de "Escolher <plano>" na landing (/dashboard?plano=<slug>): os planos
+  // abrem já na entrada, com o escolhido em destaque.
+  const [planoSugerido] = useState<PlanoSlug | undefined>(() => planoIntent(search) || undefined)
+  const [mostrarPlanos, setMostrarPlanos] = useState(() => planoIntent(search) !== '')
   const [confirmacaoAtrasada, setConfirmacaoAtrasada] = useState(false)
   const [enderecoAdiado, setEnderecoAdiado] = useState(() => {
     try { return localStorage.getItem('doclimpo-endereco-adiado') === '1' } catch { return false }
@@ -174,6 +181,11 @@ export default function Dashboard() {
     if (new URLSearchParams(search).get('checkout')) navigate('/dashboard', { replace: true, state: { voltaDoCheckout: true } })
   }, [search, navigate])
 
+  // O ?plano= já foi lido na entrada; sai da barra de endereço para não reabrir.
+  useEffect(() => {
+    if (planoIntent(search)) navigate('/dashboard', { replace: true })
+  }, [search, navigate])
+
   const voltaDoCheckout = (estadoNavegacao as { voltaDoCheckout?: boolean } | null)?.voltaDoCheckout === true
   const aguardandoPlano = voltaDoCheckout && !ehPago(plano)
 
@@ -251,7 +263,7 @@ export default function Dashboard() {
   return (
     <div className="bz-page dashboard-page">
       {mostrarPlanos && (
-        <PlanosModal motivo={podeAdicionarDocumento(plano, docs.length) ? 'escolha' : 'limite'} planoAtual={plano} onClose={() => setMostrarPlanos(false)} />
+        <PlanosModal motivo={podeAdicionarDocumento(plano, docs.length) ? 'escolha' : 'limite'} planoAtual={plano} planoSugerido={planoSugerido} onClose={() => setMostrarPlanos(false)} />
       )}
       {renovando && (
         <RenovarDialog
@@ -335,7 +347,7 @@ export default function Dashboard() {
             <span className="bz-micro">Próximo prazo</span>
             {nextDocument ? (
               <>
-                <strong className="bz-data">{Math.abs(nextDocument.days).toString().padStart(2, '0')}</strong>
+                <strong className="bz-data">{Math.abs(nextDocument.days)}</strong>
                 <span>{nextDocument.days < 0 ? 'dias em atraso' : 'dias restantes'} · {nextDocument.apelido || LABELS[nextDocument.tipo]}</span>
               </>
             ) : (
@@ -347,19 +359,19 @@ export default function Dashboard() {
           </div>
           <div className="dashboard-summary__metric">
             <span>Monitorados</span>
-            <strong className="bz-data">{docs.length.toString().padStart(2, '0')}</strong>
+            <strong className="bz-data">{docs.length}</strong>
           </div>
           <div className="dashboard-summary__metric">
             <span>Vigentes</span>
-            <strong className="bz-data">{current.toString().padStart(2, '0')}</strong>
+            <strong className="bz-data">{current}</strong>
           </div>
           <div className="dashboard-summary__metric dashboard-summary__metric--warn">
             <span>Atenção</span>
-            <strong className="bz-data">{attention.toString().padStart(2, '0')}</strong>
+            <strong className="bz-data">{attention}</strong>
           </div>
           <div className="dashboard-summary__metric dashboard-summary__metric--danger">
             <span>Críticos</span>
-            <strong className="bz-data">{critical.toString().padStart(2, '0')}</strong>
+            <strong className="bz-data">{critical}</strong>
           </div>
         </section>
 
@@ -381,7 +393,7 @@ export default function Dashboard() {
               {veiculos.map(veiculo => (
                 <li className="dashboard-veiculo__linha" key={veiculo.id}>
                   <div className="dashboard-veiculo__placa">
-                    <strong className="bz-data">{formatarPlaca(veiculo.placa)}</strong>
+                    <Placa placa={veiculo.placa} size="sm" />
                     <span>{veiculo.uf}{veiculo.apelido ? ` · ${veiculo.apelido}` : ''}</span>
                   </div>
                   <div className="dashboard-veiculo__acoes">
@@ -485,7 +497,7 @@ export default function Dashboard() {
                       <div role="cell"><StatusPill status={status.id} label={status.label} /></div>
                       <time role="cell" dateTime={document.data_vencimento}>{formatarData(document.data_vencimento)}</time>
                       <div className="documents-table__days bz-data" role="cell">
-                        {historico ? '—' : `${Math.abs(document.days).toString().padStart(2, '0')}d`}
+                        {historico ? '—' : quantosDias(document.days)}
                         <span>{historico ? 'encerrado' : document.days < 0 ? 'atrasado' : 'restantes'}</span>
                       </div>
                       <div className="documents-table__action" role="cell">
@@ -524,7 +536,7 @@ export default function Dashboard() {
                           <span>{LABELS[document.tipo] || document.tipo}</span>
                         </div>
                         <div className="document-card__days bz-data">
-                          {historico ? '—' : `${Math.abs(document.days).toString().padStart(2, '0')}d`}
+                          {historico ? '—' : quantosDias(document.days)}
                           <span>{historico ? 'encerrado' : document.days < 0 ? 'atrasado' : 'restantes'}</span>
                         </div>
                       </div>

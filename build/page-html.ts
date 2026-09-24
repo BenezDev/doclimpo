@@ -1,5 +1,5 @@
 import type { Plugin } from 'vite'
-import { getPageMeta, publicPages, siteOrigin } from '../src/lib/page-meta.ts'
+import { getPageMeta, publicPages, siteOrigin, structuredData } from '../src/lib/page-meta.ts'
 
 export function renderPageHead(html: string, path: string) {
   const meta = getPageMeta(path)
@@ -16,12 +16,17 @@ export function renderPageHead(html: string, path: string) {
     result = pattern.test(result) ? result.replace(pattern, tag) : result.replace('</head>', `  ${tag}\n  </head>`)
   }
   const canonical = `<link rel="canonical" href="${siteOrigin}${meta.path}" />`
-  return /<link rel="canonical"[^>]*>/.test(result) ? result.replace(/<link rel="canonical"[^>]*>/, canonical) : result.replace('</head>', `  ${canonical}\n  </head>`)
+  result = /<link rel="canonical"[^>]*>/.test(result) ? result.replace(/<link rel="canonical"[^>]*>/, canonical) : result.replace('</head>', `  ${canonical}\n  </head>`)
+  // JSON-LD: "<" vira \u003c para nenhum texto fechar o <script> antes da hora.
+  result = result.replace(/\s*<script type="application\/ld\+json">[\s\S]*?<\/script>/g, '')
+  const blocos = structuredData(path).map(dado => `<script type="application/ld+json">${JSON.stringify(dado).replace(/</g, '\\u003c')}</script>`)
+  return blocos.length ? result.replace('</head>', `  ${blocos.join('\n  ')}\n  </head>`) : result
 }
 
-// Só páginas indexáveis; as privadas e as de fluxo ficam de fora.
-export function renderSitemap() {
-  const urls = Object.values(publicPages).filter(page => page.index).map(page => `  <url><loc>${siteOrigin}${page.path}</loc></url>`)
+// Só páginas indexáveis; as privadas e as de fluxo ficam de fora. `lastmod` é a
+// data do build: toda publicação pode ter mudado o conteúdo das páginas.
+export function renderSitemap(lastmod = new Date().toISOString().slice(0, 10)) {
+  const urls = Object.values(publicPages).filter(page => page.index).map(page => `  <url><loc>${siteOrigin}${page.path}</loc><lastmod>${lastmod}</lastmod></url>`)
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join('\n')}\n</urlset>\n`
 }
 

@@ -13,7 +13,9 @@ test('12 documentos pessoais com título e descrição únicos e sem caracteres 
     assert.doesNotMatch(item.descricao, /[&<>"']/, item.slug)
     assert.ok(item.descricao.length <= 160, `${item.slug}: descrição longa (${item.descricao.length})`)
     assert.equal(item.faqs.length, 3, item.slug)
-    assert.equal(documentIntent(`?documento=${item.slug}`), item.slug, `${item.slug} fora do allowlist de ?documento=`)
+    assert.equal(documentIntent(`?documento=${item.tipo}`), item.tipo, `${item.tipo} fora do allowlist de ?documento=`)
+    assert.match(item.slug, /^[a-z]+(-[a-z]+)*$/, `${item.slug}: slug com hífen, sem underline`)
+    assert.match(item.cta, /^Acompanhar /, item.slug)
     assert.equal(publicPages[`/documentos/${item.slug}`]?.index, true, `${item.slug} sem page-meta indexável`)
   }
   assert.equal(documentoPublicoPorSlug('cnh')?.autoridade.orgao, 'Detran')

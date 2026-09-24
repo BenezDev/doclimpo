@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { requestPasswordReset, submitAccess, traduzirErroAuth, validateNewPassword } from '../src/lib/access-flow.ts'
-import { documentIntent, withDocumentIntent, faqs, useCases, support, legalPublished } from '../src/lib/public-content.ts'
+import { documentIntent, planoIntent, withIntent, faqs, support, legalPublished } from '../src/lib/public-content.ts'
 import { getPageMeta, publicPages } from '../src/lib/page-meta.ts'
 import { renderPageHead } from '../build/page-html.ts'
 
@@ -55,17 +55,23 @@ test('login comum vai ao painel; case válido preserva intenção', async () => 
 test('erro no login não navega', async () => {
   assert.ok((await submitAccess(mockAuth(null, new Error('invalid')), { ...credentials, signup: false })).error)
 })
-test('links personalizados usam somente os tipos permitidos', () => {
-  for (const item of useCases) assert.equal(documentIntent(`?documento=${item.type}`), item.type)
-  for (const search of ['?documento=__proto__', '?documento=https://evil.test', '?next=https://evil.test', '?email=private@example.test']) {
+test('links personalizados usam somente os tipos e planos permitidos', () => {
+  for (const tipo of ['cnh', 'crlv', 'ipva', 'multa', 'passaporte', 'seguro']) assert.equal(documentIntent(`?documento=${tipo}`), tipo)
+  for (const plano of ['individual', 'mei', 'familia']) assert.equal(planoIntent(`?plano=${plano}`), plano)
+  for (const search of ['?documento=__proto__', '?documento=https://evil.test', '?plano=FREE', '?plano=__proto__', '?next=https://evil.test', '?email=private@example.test']) {
     assert.equal(documentIntent(search), '')
-    assert.equal(withDocumentIntent('/cadastro', search), '/cadastro')
+    assert.equal(planoIntent(search), '')
+    assert.equal(withIntent('/cadastro', search), '/cadastro')
   }
-  assert.equal(withDocumentIntent('/obrigado', '?documento=cnh&email=private@example.test&token=secret'), '/obrigado?documento=cnh')
+  assert.equal(withIntent('/obrigado', '?documento=cnh&email=private@example.test&token=secret'), '/obrigado?documento=cnh')
+  assert.equal(withIntent('/obrigado', '?plano=mei&token=secret&documento=ipva'), '/obrigado?documento=ipva&plano=mei')
 })
-test('FAQ contém exatamente cinco perguntas distintas', () => {
-  assert.equal(faqs.length, 5)
-  assert.equal(new Set(faqs.map(item => item.question)).size, 5)
+test('login com plano escolhido na landing vai ao painel levando o plano', async () => {
+  assert.deepEqual(await submitAccess(mockAuth(), { ...credentials, signup: false, search: '?plano=familia' }), { to: '/dashboard?plano=familia' })
+})
+test('FAQ contém exatamente oito perguntas distintas', () => {
+  assert.equal(faqs.length, 8)
+  assert.equal(new Set(faqs.map(item => item.question)).size, 8)
   for (const item of faqs) assert.ok(item.answer.length > 60)
 })
 test('operador identificado: contato, SLA e responsável preenchidos, páginas legais publicadas', () => {

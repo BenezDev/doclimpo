@@ -1,4 +1,4 @@
-import { documentIntent, withDocumentIntent } from './public-content.ts'
+import { documentIntent, withIntent } from './public-content.ts'
 
 interface AuthPort {
   signUp: (input: { email: string; password: string; options: { data: { nome: string } } }) => Promise<{ data: { session: unknown }; error: unknown }>
@@ -34,11 +34,11 @@ export async function submitAccess(auth: AuthPort, input: { signup: boolean; ema
     if (input.signup) {
       const { data, error } = await auth.signUp({ email: input.email.trim(), password: input.password, options: { data: { nome: input.name.trim() } } })
       if (error) return { error: traduzirErroAuth(error, 'signup') }
-      return { to: withDocumentIntent('/obrigado', input.search), state: { signup: data.session ? 'active' : 'pending' } }
+      return { to: withIntent('/obrigado', input.search), state: { signup: data.session ? 'active' : 'pending' } }
     }
     const { error } = await auth.signInWithPassword({ email: input.email.trim(), password: input.password })
     if (error) return { error: traduzirErroAuth(error, 'login') }
-    return { to: withDocumentIntent(documentIntent(input.search) ? '/onboarding' : '/dashboard', input.search) }
+    return { to: withIntent(documentIntent(input.search) ? '/onboarding' : '/dashboard', input.search) }
   } catch {
     return { error: MENSAGEM_CONEXAO }
   }

@@ -12,6 +12,8 @@ interface Props {
   // 'limite': o usuário bateu no limite do plano gratuito; 'escolha': abriu por vontade própria.
   motivo?: 'limite' | 'escolha'
   planoAtual?: PlanType
+  // Plano escolhido na landing antes do cadastro: fica em destaque no lugar do padrão.
+  planoSugerido?: PlanoSlug
 }
 
 async function mensagemDaFuncao(error: unknown, padrao: string): Promise<string> {
@@ -23,7 +25,7 @@ async function mensagemDaFuncao(error: unknown, padrao: string): Promise<string>
   } catch { return padrao }
 }
 
-export function PlanosModal({ onClose, motivo = 'escolha', planoAtual = 'FREE' }: Props) {
+export function PlanosModal({ onClose, motivo = 'escolha', planoAtual = 'FREE', planoSugerido }: Props) {
   const reduceMotion = useReducedMotion()
   const dialogRef = useRef<HTMLDivElement>(null)
   const [assinando, setAssinando] = useState<PlanoSlug | null>(null)
@@ -88,7 +90,7 @@ export function PlanosModal({ onClose, motivo = 'escolha', planoAtual = 'FREE' }
         <header className="bz-modal__header">
           <div>
             <h2 id="planos-modal-title">{motivo === 'limite' ? 'Seu plano gratuito monitora 1 documento.' : 'Escolha seu plano.'}</h2>
-            <p>ASSINATURA MENSAL · CANCELE QUANDO QUISER</p>
+            <p>Assinatura mensal · cancele quando quiser</p>
           </div>
           <button className="bz-icon-button bz-modal__close" type="button" onClick={onClose} aria-label="Fechar">
             <X size={18} strokeWidth={1.75} />
@@ -105,9 +107,10 @@ export function PlanosModal({ onClose, motivo = 'escolha', planoAtual = 'FREE' }
           <div className="planos-grid" role="list" aria-label="Planos disponíveis">
             {PLANOS.map(plano => {
               const atual = planoAtual === plano.id
+              const destaque = planoSugerido ? planoSugerido === plano.slug : plano.destaque
               return (
-                <article className={`plano-card ${plano.destaque ? 'plano-card--destaque' : ''}`} role="listitem" key={plano.id}>
-                  {plano.destaque && <span className="plano-card__selo"><Sparkles size={12} strokeWidth={2} aria-hidden="true" /> Mais escolhido</span>}
+                <article className={`plano-card ${destaque ? 'plano-card--destaque' : ''}`} role="listitem" key={plano.id}>
+                  {destaque && <span className="plano-card__selo"><Sparkles size={12} strokeWidth={2} aria-hidden="true" /> {planoSugerido ? 'Sua escolha' : 'Mais escolhido'}</span>}
                   <h3>{plano.nome}</h3>
                   <p className="plano-card__descricao">{plano.descricao}</p>
                   <div className="plano-card__preco"><strong className="bz-data">{formatarPreco(plano.precoCentavos)}</strong><span>/mês</span></div>
@@ -115,7 +118,7 @@ export function PlanosModal({ onClose, motivo = 'escolha', planoAtual = 'FREE' }
                     {plano.beneficios.map(item => <li key={item}><Check size={14} strokeWidth={2} aria-hidden="true" />{item}</li>)}
                   </ul>
                   <Button
-                    variant={plano.destaque ? 'primary' : 'secondary'}
+                    variant={destaque ? 'primary' : 'secondary'}
                     size="md"
                     disabled={assinando !== null || atual}
                     onClick={() => assinar(plano.slug)}

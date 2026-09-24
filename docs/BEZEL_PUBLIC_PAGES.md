@@ -1,39 +1,46 @@
-# DocLimpo — páginas públicas Bezel
+# DocLimpo — páginas públicas
 
 ## Rotas e navegação
 
-- `/`: landing com topo fixo, mock estático do painel (rotulado como demonstração), três casos de uso ilustrativos, planos lidos de `src/lib/planos.ts` e cinco perguntas frequentes. Estilos próprios em `src/styles/landing.css`, importado pela página.
-- `/cadastro`: abre diretamente a criação de conta; `/login` permanece para entrar.
-- `/cadastro?documento=cnh`, `passaporte` ou `seguro`: preservam o tipo no agradecimento, login e onboarding. Somente tipos conhecidos são aceitos; e-mail, token e destinos arbitrários não são propagados.
-- `/obrigado`: confirmação pendente, sessão ativa ou acesso direto sem alegação de sucesso.
-- `/privacidade`: minuta pública para revisão, com dados do fluxo atual e lacunas sinalizadas; `noindex` enquanto incompleta.
-- Qualquer rota desconhecida: 404 Bezel com retorno ao início e ao painel.
-- Âncoras: `/#como-funciona`, `/#casos`, `/#planos`, `/#gratuito`, `/#perguntas`, `/#atendimento`.
+- `/`: landing "amigo do motorista". Seções: abertura com celular ilustrado e placa,
+  faixa dos canais oficiais, "Esquecer a data sai caro" (`#custo`, fatos do CTB em
+  `src/data/custo-de-esquecer.ts`), como funciona, recursos, privacidade, planos (`#planos`,
+  `#gratuito`), perguntas (`#perguntas`, 8 itens de `src/lib/public-content.ts`) e chamada final.
+  Estilos em `src/styles/landing.css`, importado em `App.tsx`.
+- `/sobre` (com `#contato`) e `/seguranca`: indexáveis, conteúdo estático.
+- `/documentos` e `/documentos/<slug>`: guias por documento (`src/lib/documentos-publicos.ts`).
+  Slug com hífen; o tipo do banco fica em `tipo`. Slugs antigos com underline têm 301.
+- `/cadastro`, `/login`, `/obrigado`, `/privacidade`, `/termos`, 404: como antes.
+- Intenções: `?documento=<tipo>` e `?plano=<slug>` passam por cadastro, login, agradecimento,
+  onboarding e painel (`withIntent`). Qualquer outro parâmetro é descartado.
+- Rodapé comum (`SiteFooter`) na landing e no `PublicShell`. Razão social e CNPJ só aparecem
+  com `support.cnpj` preenchido.
 
-## Pendências antes de publicar
+## Busca
 
-1. Confirmar e-mail monitorado e prazo real de primeira resposta em `src/lib/public-content.ts` (`support`). Sem os dois, a interface não faz promessa de SLA.
-2. Confirmar nome/razão social do controlador, canal de privacidade, bases legais, retenção/backups e condições dos prestadores. Revisar a minuta em `src/pages/Privacy.tsx` antes de retirar o aviso e alterar seu `noindex`.
-3. Substituir cenários ilustrativos por cases de clientes apenas com autorização e evidências. A versão atual não usa clientes, depoimentos ou métricas inventadas.
-4. Revisar o domínio canônico em `src/lib/page-meta.ts` caso o endereço oficial mude. Mantido o domínio já presente no projeto.
-5. Validar em ambiente autorizado login/cadastro e envio de e-mail reais. Não houve criação de conta, envio ou alteração remota nesta entrega.
+- `build/page-html.ts`: title, description, OG, canonical, robots e JSON-LD por rota; sitemap
+  com `lastmod` e robots.
+- `scripts/prerender.mjs` (último passo do `npm run build`): HTML das páginas indexáveis dentro
+  de `#root`. No navegador, `createRoot` substitui esse HTML pela aplicação.
+- Depois de publicar: Search Console e Bing Webmaster (verificação por TXT no DNS da Hostinger)
+  e envio do `sitemap.xml`.
+
+## Pendências
+
+1. Trocar `support.email` para `contato@doclimpo.com` quando o redirecionamento existir na Hostinger.
+2. Preencher `support.cnpj` quando o MEI sair.
+3. Depoimentos só de clientes reais, com autorização.
 
 ## Verificação local
-
-Sem dependências novas. Runtime utilizado: Node 24.
 
 ```sh
 npm run lint
 npm test
 npm run build
 npm run test:build
-npm run dev -- --host 127.0.0.1 --port 4174 --strictPort
+npm run preview -- --host 127.0.0.1 --port 4173 --strictPort
 ```
 
-Os testes de renderização usam React no servidor e substituem o cliente Supabase por um bloqueio explícito de acesso. Os testes do fluxo usam respostas simuladas; não são testes end-to-end de navegador.
-
-O build gera HTML com title/description/OG/canonical por rota, além do ajuste no cliente durante navegação. Isso não é pré-renderização do conteúdo integral das páginas. As rotas privadas, o agradecimento, a política em revisão e a 404 usam `noindex`.
-
-`vercel.json` contém regras locais para servir esses arquivos e retornar HTTP 404 nos endereços desconhecidos, preservando assets e rotas privadas. A checagem do build valida arquivos e regras, não o comportamento remoto da Vercel. O Vite de desenvolvimento mantém seu fallback HTTP 200; a página React ainda mostra a 404.
-
-Capturas da landing (1280/375/360 px, claro e escuro) e o relatório de overflow, requisições e console ficam em `docs/evidencias/landing-<data>/`. Não foram realizados deploy, push, alterações de schema, Edge Functions ou configuração remota do Supabase.
+Os testes de renderização usam React no servidor e bloqueiam o cliente Supabase. A checagem do
+build valida arquivos, HTML pré-renderizado, JSON-LD e regras locais do `vercel.json`, não o
+comportamento remoto da Vercel.

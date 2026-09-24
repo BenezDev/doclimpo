@@ -31,13 +31,13 @@ export default function DocumentoPublico() {
   return (
     <PublicShell>
       <header className="privacy-heading documento-publico__heading">
-        <DocumentGlyph type={documento.slug} size="lg" />
+        <DocumentGlyph type={documento.tipo} size="lg" />
         <div>
           <span className="bz-micro">Guia · <Link to="/documentos">Documentos</Link></span>
           <h1>{documento.h1 ?? `${documento.nome}: validade, renovação e alerta de vencimento.`}</h1>
           <p>{documento.descricao}</p>
           <div className="outcome-actions">
-            <ActionLink to={`/cadastro?documento=${documento.slug}`} variant="primary" size="lg">{documento.cta ?? `Acompanhar meu ${documento.nome.split(' ')[0]}`}<ArrowRight size={17} aria-hidden="true" /></ActionLink>
+            <ActionLink to={`/cadastro?documento=${documento.tipo}`} variant="primary" size="lg">{documento.cta}<ArrowRight size={17} aria-hidden="true" /></ActionLink>
           </div>
         </div>
       </header>

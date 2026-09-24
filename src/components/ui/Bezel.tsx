@@ -46,10 +46,24 @@ export function Button({
   )
 }
 
+// Símbolo da marca: placa Mercosul com o check de "em dia". Mesmo desenho de
+// public/favicon.svg e dos ícones do app — se mudar aqui, gere os PNGs de novo.
+export function BrandMark({ className = 'bz-brand__mark' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+      <rect width="64" height="64" rx="16" fill="#101614" />
+      <rect x="9" y="17" width="46" height="30" rx="5" fill="#ffffff" />
+      <path d="M9 22a5 5 0 0 1 5-5h36a5 5 0 0 1 5 5v3H9z" fill="#1d3f95" />
+      <rect x="46.5" y="19.3" width="4.5" height="3.4" rx="0.6" fill="#12c86c" />
+      <path d="M22.5 35.5l6 5.5 13-12.5" fill="none" stroke="#12c86c" strokeWidth="5.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 export function Brand() {
   return (
     <span className="bz-brand" aria-label="DocLimpo">
-      <span className="bz-brand__mark" aria-hidden="true">D<span>L</span></span>
+      <BrandMark />
       <span className="bz-brand__name">DocLimpo</span>
     </span>
   )

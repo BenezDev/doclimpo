@@ -7,7 +7,8 @@ import { useTheme } from '../hooks/useTheme'
 import { supabase } from '../integrations/supabase/client'
 import { bezelSpring, fadeUp } from '../lib/motion'
 import { useAuth } from '../hooks/useAuth'
-import { documentIntent, withDocumentIntent } from '../lib/public-content'
+import { PLANOS } from '../lib/planos'
+import { documentIntent, planoIntent, withIntent } from '../lib/public-content'
 import { requestPasswordReset, submitAccess } from '../lib/access-flow'
 
 const accessBenefits = [
@@ -31,6 +32,7 @@ const accessBenefits = [
 export default function Login({ isCadastro = false }: { isCadastro?: boolean }) {
   const navigate = useNavigate()
   const { search } = useLocation()
+  const planoEscolhido = PLANOS.find(plano => plano.slug === planoIntent(search))
   const { user, loading: authLoading } = useAuth()
   const reduceMotion = useReducedMotion()
   const { dark, toggleTheme } = useTheme()
@@ -43,7 +45,7 @@ export default function Login({ isCadastro = false }: { isCadastro?: boolean }) 
   const [linkEnviado, setLinkEnviado] = useState(false)
 
   const selectMode = (cadastro: boolean) => {
-    navigate(withDocumentIntent(cadastro ? '/cadastro' : '/login', search))
+    navigate(withIntent(cadastro ? '/cadastro' : '/login', search))
     setErro('')
     setRecuperando(false)
     setLinkEnviado(false)
@@ -74,7 +76,7 @@ export default function Login({ isCadastro = false }: { isCadastro?: boolean }) 
     }
   }
 
-  if (user && !loading) return <Navigate to={withDocumentIntent(documentIntent(search) ? '/onboarding' : '/dashboard', search)} replace />
+  if (user && !loading) return <Navigate to={withIntent(documentIntent(search) ? '/onboarding' : '/dashboard', search)} replace />
 
   return (
     <div className="bz-page auth-page">
@@ -94,6 +96,7 @@ export default function Login({ isCadastro = false }: { isCadastro?: boolean }) 
               <span className="bz-micro">Acesso seguro</span>
               <h1>{recuperando ? 'Recupere seu acesso.' : isCadastro ? 'Crie sua conta.' : 'Continue de onde parou.'}</h1>
               <p>{recuperando ? 'Enviamos um link para você definir uma nova senha.' : isCadastro ? 'O primeiro documento é gratuito. Sem cartão.' : 'Entre para consultar seus próximos vencimentos.'}</p>
+              {!recuperando && planoEscolhido && <p className="auth-intro__plano">Você escolheu o plano <strong>{planoEscolhido.nome}</strong>. {isCadastro ? 'Depois de criar a conta e entrar, a assinatura abre para você.' : 'Ao entrar, a assinatura abre para você.'}</p>}
             </div>
 
             <div className="auth-panel">

@@ -10,6 +10,8 @@ import { autoridadePara, type Autoridade } from './renovacao.ts'
 export interface PerguntaPublica { pergunta: string; resposta: string }
 
 export interface DocumentoPublico {
+  // Tipo do documento no banco (documentos.tipo); o slug é só o endereço público.
+  tipo: string
   slug: string
   nome: string
   titulo: string
@@ -20,7 +22,7 @@ export interface DocumentoPublico {
   faqs: PerguntaPublica[]
   // Só quando "validade/renovação" não descreve o documento (ex.: multa).
   h1?: string
-  cta?: string
+  cta: string
   rotulos?: { validade?: string; renovar?: string }
   // Canais oficiais fixos, além do portal da autoridade.
   links?: FonteConsulta[]
@@ -28,7 +30,9 @@ export interface DocumentoPublico {
 
 export const DOCUMENTOS_PUBLICOS: DocumentoPublico[] = [
   {
+    tipo: 'cnh',
     slug: 'cnh',
+    cta: 'Acompanhar minha CNH',
     nome: 'CNH',
     titulo: 'CNH: validade, renovação e alerta de vencimento | DocLimpo',
     descricao: 'Quanto tempo vale a CNH pela sua idade, como renovar no Detran e como receber aviso por e-mail antes de vencer.',
@@ -42,7 +46,9 @@ export const DOCUMENTOS_PUBLICOS: DocumentoPublico[] = [
     ],
   },
   {
+    tipo: 'crlv',
     slug: 'crlv',
+    cta: 'Acompanhar meu licenciamento',
     nome: 'CRLV (licenciamento)',
     titulo: 'CRLV e licenciamento anual: prazo por final de placa | DocLimpo',
     descricao: 'O licenciamento do veículo vence todo ano, em mês definido pelo final da placa em cada estado. Veja como funciona e receba aviso antes.',
@@ -56,7 +62,9 @@ export const DOCUMENTOS_PUBLICOS: DocumentoPublico[] = [
     ],
   },
   {
+    tipo: 'ipva',
     slug: 'ipva',
+    cta: 'Acompanhar meu IPVA',
     nome: 'IPVA',
     titulo: 'IPVA: calendário por final de placa e cota única | DocLimpo',
     descricao: 'O IPVA vence no início do ano, em datas que cada estado define pelo final da placa. Entenda cota única, parcelas e como ser avisado.',
@@ -70,6 +78,7 @@ export const DOCUMENTOS_PUBLICOS: DocumentoPublico[] = [
     ],
   },
   {
+    tipo: 'multa',
     slug: 'multa',
     nome: 'Multa de trânsito',
     h1: 'Multa de trânsito: prazo para defesa, desconto e alerta antes de vencer.',
@@ -88,7 +97,9 @@ export const DOCUMENTOS_PUBLICOS: DocumentoPublico[] = [
     ],
   },
   {
+    tipo: 'passaporte',
     slug: 'passaporte',
+    cta: 'Acompanhar meu passaporte',
     nome: 'Passaporte',
     titulo: 'Passaporte: validade, renovação na Polícia Federal e alerta | DocLimpo',
     descricao: 'Passaporte brasileiro vale 10 anos para adultos e menos para crianças. Saiba como renovar e por que conferir a validade antes de viajar.',
@@ -102,7 +113,9 @@ export const DOCUMENTOS_PUBLICOS: DocumentoPublico[] = [
     ],
   },
   {
+    tipo: 'rg',
     slug: 'rg',
+    cta: 'Acompanhar meu RG',
     nome: 'RG e CIN',
     titulo: 'RG e Carteira de Identidade Nacional: validade e renovação | DocLimpo',
     descricao: 'O RG antigo vale até 2032 e a nova CIN tem validade por faixa etária. Veja prazos, onde emitir e como receber aviso.',
@@ -116,7 +129,9 @@ export const DOCUMENTOS_PUBLICOS: DocumentoPublico[] = [
     ],
   },
   {
+    tipo: 'seguro',
     slug: 'seguro',
+    cta: 'Acompanhar meu seguro',
     nome: 'Seguro auto',
     titulo: 'Seguro auto: fim de vigência, renovação e alerta | DocLimpo',
     descricao: 'A apólice do seguro do carro costuma valer 12 meses. Saiba por que cadastrar o fim da vigência e como negociar a renovação sem correria.',
@@ -130,7 +145,9 @@ export const DOCUMENTOS_PUBLICOS: DocumentoPublico[] = [
     ],
   },
   {
-    slug: 'plano_saude',
+    tipo: 'plano_saude',
+    slug: 'plano-de-saude',
+    cta: 'Acompanhar meu plano de saúde',
     nome: 'Plano de saúde',
     titulo: 'Plano de saúde: vigência, reajuste e carência | DocLimpo',
     descricao: 'Contratos de plano de saúde renovam automaticamente e reajustam no aniversário. Saiba quais datas acompanhar e como ser avisado.',
@@ -144,7 +161,9 @@ export const DOCUMENTOS_PUBLICOS: DocumentoPublico[] = [
     ],
   },
   {
-    slug: 'carteira_trabalho',
+    tipo: 'carteira_trabalho',
+    slug: 'carteira-de-trabalho',
+    cta: 'Acompanhar minha carteira de trabalho',
     nome: 'Carteira de trabalho',
     titulo: 'Carteira de trabalho digital: prazos que valem a pena acompanhar | DocLimpo',
     descricao: 'A CTPS não tem validade, mas contrato de experiência, aviso prévio e benefícios têm prazo. Veja quais datas cadastrar.',
@@ -158,7 +177,9 @@ export const DOCUMENTOS_PUBLICOS: DocumentoPublico[] = [
     ],
   },
   {
+    tipo: 'garantia',
     slug: 'garantia',
+    cta: 'Acompanhar minha garantia',
     nome: 'Garantia de produto',
     titulo: 'Garantia de produto ou serviço: prazo legal, contratual e alerta | DocLimpo',
     descricao: 'Garantia legal de 30 ou 90 dias mais a garantia contratual do fabricante. Guarde a nota fiscal e seja avisado antes do fim do prazo.',
@@ -172,7 +193,9 @@ export const DOCUMENTOS_PUBLICOS: DocumentoPublico[] = [
     ],
   },
   {
+    tipo: 'contrato',
     slug: 'contrato',
+    cta: 'Acompanhar meu contrato',
     nome: 'Contrato e aluguel',
     titulo: 'Contrato de aluguel ou prestação: fim de vigência e aviso prévio | DocLimpo',
     descricao: 'Contratos vencem e renovam com prazos de aviso. Cadastre o fim da vigência ou a data-limite para avisar e evite renovação automática indesejada.',
@@ -186,7 +209,9 @@ export const DOCUMENTOS_PUBLICOS: DocumentoPublico[] = [
     ],
   },
   {
+    tipo: 'exame',
     slug: 'exame',
+    cta: 'Acompanhar meu exame',
     nome: 'Exame periódico e ASO',
     titulo: 'Exame periódico e ASO: prazos pela NR-7 e alerta | DocLimpo',
     descricao: 'O exame ocupacional periódico tem prazo pela NR-7 conforme idade e risco. Saiba quando repetir e como ser avisado.',
@@ -205,5 +230,5 @@ export const SLUGS_PUBLICOS: readonly string[] = DOCUMENTOS_PUBLICOS.map(item =>
 
 export function documentoPublicoPorSlug(slug: string): (DocumentoPublico & { autoridade: Autoridade }) | null {
   const item = DOCUMENTOS_PUBLICOS.find(candidate => candidate.slug === slug)
-  return item ? { ...item, autoridade: autoridadePara(item.slug) } : null
+  return item ? { ...item, autoridade: autoridadePara(item.tipo) } : null
 }

@@ -48,31 +48,39 @@ async function renderPage(path, location, { user = null, loading = false, props 
     createElement(AuthContext.Provider, { value: { user, loading, session: null, signOut: async () => {} } }, createElement(Page, props))))
 }
 
-test('landing renderiza cinco FAQs, quatro cases rotulados e links reais', async () => {
+test('landing renderiza oito FAQs, os custos do CTB com fonte e links reais', async () => {
   const html = await renderPage('Landing_1', '/')
-  assert.equal((html.match(/<details /g) ?? []).length, 5)
-  assert.equal((html.match(/class="landing-card case-card"/g) ?? []).length, 4)
-  assert.match(html, /Cenários ilustrativos/)
-  for (const path of ['/cadastro', '/cadastro?documento=multa', '/cadastro?documento=cnh', '/cadastro?documento=passaporte', '/cadastro?documento=seguro', '/privacidade', '/termos', '/login']) assert.ok(html.includes(`href="${path}"`))
-  assert.doesNotMatch(html, /href="#"|SYNC 09:00/)
+  assert.equal((html.match(/<details /g) ?? []).length, 8)
+  assert.equal((html.match(/class="landing-custo"/g) ?? []).length, 4)
+  assert.equal((html.match(/href="https:\/\/www\.planalto\.gov\.br\/ccivil_03\/leis\/l9503compilado\.htm"/g) ?? []).length, 4)
+  for (const text of ['R$ 293,47', 'art. 162', 'art. 230', 'art. 284']) assert.ok(html.includes(text), text)
+  for (const path of ['/cadastro', '/cadastro?documento=cnh', '/cadastro?documento=ipva', '/cadastro?documento=multa', '/privacidade', '/termos', '/login', '/sobre', '/seguranca', '/documentos/cnh']) assert.ok(html.includes(`href="${path}"`), path)
+  assert.doesNotMatch(html, /href="#"|dados ilustrativos|Cenários ilustrativos/)
   const ids = new Set([...html.matchAll(/id="([^"]+)"/g)].map(match => match[1]))
   for (const match of html.matchAll(/href="#([^"]+)"/g)) assert.ok(ids.has(match[1]), `âncora ausente: ${match[1]}`)
 })
-test('landing tem h1 único, âncoras do topo fixo, mock rotulado e nenhum recurso externo', async () => {
+test('landing tem h1 único, âncoras do topo fixo, ilustração rotulada e nenhum recurso externo', async () => {
   const html = await renderPage('Landing_1', '/')
   assert.equal((html.match(/<h1[\s>]/g) ?? []).length, 1)
-  for (const id of ['como-funciona', 'casos', 'planos', 'gratuito', 'perguntas', 'atendimento']) assert.ok(html.includes(`id="${id}"`), `âncora ausente: #${id}`)
+  for (const id of ['como-funciona', 'custo', 'planos', 'gratuito', 'perguntas']) assert.ok(html.includes(`id="${id}"`), `âncora ausente: #${id}`)
   assert.doesNotMatch(html, /<script[^>]*\ssrc=|<img[^>]*\ssrc="http/)
-  assert.match(html, /dados ilustrativos/)
+  assert.match(html, /aria-label="Ilustração: celular/)
+  // Rodapé sem CNPJ enquanto support.cnpj for null.
+  assert.doesNotMatch(html, /CNPJ/)
   assert.match(html, /<nav[^>]*aria-label="Seções da página"/)
   assert.match(html, /href="\/login"/)
   assert.match(html, /Começar grátis/)
 })
-test('landing preserva ?documento= nos links de cadastro e login', async () => {
+test('landing preserva ?documento= nos links de cadastro e login e leva o plano escolhido', async () => {
   const html = await renderPage('Landing_1', '/?documento=passaporte')
   assert.match(html, /href="\/cadastro\?documento=passaporte"/)
   assert.match(html, /href="\/login\?documento=passaporte"/)
-  assert.doesNotMatch(html, /href="\/cadastro"/)
+  // Topo, abertura, plano grátis e chamada final levam a intenção; só o rodapé tem o cadastro genérico.
+  assert.ok((html.match(/href="\/cadastro\?documento=passaporte"/g) ?? []).length >= 4)
+  assert.equal((html.match(/href="\/cadastro"/g) ?? []).length, 1)
+  const planos = await renderPage('Landing_1', '/')
+  for (const slug of ['individual', 'mei', 'familia']) assert.ok(planos.includes(`href="/cadastro?plano=${slug}"`), slug)
+  for (const text of ['Escolher Individual', 'Escolher MEI', 'Escolher Família']) assert.ok(planos.includes(text), text)
 })
 test('cadastro abre o formulário certo e login usa senha existente', async () => {
   const register = await renderPage('Login', '/cadastro', { props: { isCadastro: true } })
@@ -214,6 +222,17 @@ test('páginas públicas por documento: h1 único, CTA com o tipo, portal oficia
   assert.equal(SLUGS_PUBLICOS.length, 12)
   for (const slug of SLUGS_PUBLICOS) assert.ok(hub.includes(`href="/documentos/${slug}"`), slug)
 })
+test('sobre e segurança: h1 único, contato real, links para privacidade e nada de CNPJ inventado', async () => {
+  for (const [pagina, rota] of [['Sobre', '/sobre'], ['Seguranca', '/seguranca']]) {
+    const html = await renderPage(pagina, rota)
+    assert.equal((html.match(/<h1[\s>]/g) ?? []).length, 1, pagina)
+    assert.match(html, /mailto:/, pagina)
+    assert.match(html, /href="\/privacidade"/, pagina)
+    assert.doesNotMatch(html, /CNPJ/, pagina)
+  }
+  const seguranca = await renderPage('Seguranca', '/seguranca')
+  for (const text of ['CPF', 'gov.br', 'Cakto', 'Exporta'.toLowerCase()]) assert.ok(seguranca.toLowerCase().includes(text.toLowerCase()), text)
+})
 test('paywall lista os três planos, destaca o Individual e nunca envia preço ao servidor', async () => {
   const { PlanosModal } = await server.ssrLoadModule('/src/components/ui/PlanosModal.tsx')
   const render = (props) => renderToStaticMarkup(createElement(MemoryRouter, { initialEntries: ['/dashboard'] }, createElement(PlanosModal, { onClose() {}, ...props })))
@@ -221,6 +240,10 @@ test('paywall lista os três planos, destaca o Individual e nunca envia preço a
   assert.match(limite, /monitora 1 documento/)
   for (const text of ['Assinar Individual', 'Assinar MEI', 'Assinar Família', 'R$ 9,90', 'R$ 29,89', 'R$ 19,89', 'Mais escolhido', 'href="\/termos"']) assert.ok(limite.includes(text), text)
   assert.equal((limite.match(/plano-card--destaque/g) ?? []).length, 1)
+  const sugerido = render({ motivo: 'escolha', planoSugerido: 'familia' })
+  assert.equal((sugerido.match(/plano-card--destaque/g) ?? []).length, 1)
+  assert.match(sugerido, /Sua escolha/)
+  assert.doesNotMatch(sugerido, /Mais escolhido/)
   const atual = render({ motivo: 'escolha', planoAtual: 'MEI' })
   assert.match(atual, /Seu plano atual/)
   assert.doesNotMatch(atual, /Assinar MEI/)
