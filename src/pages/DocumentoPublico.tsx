@@ -4,6 +4,7 @@ import { ActionLink } from '../components/ui/ActionLink'
 import { DocumentGlyph } from '../components/ui/Bezel'
 import { PublicShell } from '../components/ui/PublicShell'
 import { DOCUMENTOS_PUBLICOS, documentoPublicoPorSlug } from '../lib/documentos-publicos'
+import { CALCULADORAS, GUIAS } from '../lib/guias'
 import { JANELAS_ALERTA } from '../lib/planos'
 import NotFound from './NotFound'
 
@@ -26,6 +27,10 @@ export default function DocumentoPublico() {
   if (!documento) return <NotFound />
 
   const outros = DOCUMENTOS_PUBLICOS.filter(item => item.slug !== documento.slug).slice(0, 4)
+  const relacionados = [
+    ...CALCULADORAS.filter(item => item.tipo === documento.tipo).map(item => ({ to: item.path, rotulo: item.nome })),
+    ...GUIAS.filter(guia => guia.tipo === documento.tipo).map(guia => ({ to: `/guias/${guia.slug}`, rotulo: guia.h1.replace(/\.$/, '') })),
+  ]
   const sections = sectionsDe(documento.rotulos)
 
   return (
@@ -79,6 +84,14 @@ export default function DocumentoPublico() {
               {documento.faqs.map(item => <div key={item.pergunta}><dt>{item.pergunta}</dt><dd>{item.resposta}</dd></div>)}
             </dl>
           </section>
+          {relacionados.length > 0 && (
+            <section aria-label="Guias e calculadoras">
+              <h2>Guias e calculadoras</h2>
+              <ul className="documento-publico__outros">
+                {relacionados.map(item => <li key={item.to}><Link to={item.to}>{item.rotulo}<ArrowUpRight size={14} aria-hidden="true" /></Link></li>)}
+              </ul>
+            </section>
+          )}
           <section aria-label="Outros documentos">
             <h2>Outros documentos</h2>
             <ul className="documento-publico__outros">

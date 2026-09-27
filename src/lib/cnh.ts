@@ -5,6 +5,14 @@
 
 import { parseData, somarAnos, type DataISO } from './datas.ts'
 
+// A Lei 14.071/2020 entrou em vigor em 12/04/2021. Exames anteriores seguiam a
+// regra antiga (5 anos, ou 3 acima de 65), e aí a data impressa na CNH é que vale.
+export const INICIO_LEI_14071: DataISO = '2021-04-12'
+
+export function regraAtualVale(exameISO: DataISO): boolean {
+  return exameISO >= INICIO_LEI_14071
+}
+
 export function idadeEm(nascimentoISO: DataISO, dataISO: DataISO): number {
   const nascimento = parseData(nascimentoISO)
   const data = parseData(dataISO)

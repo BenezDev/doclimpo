@@ -8,6 +8,8 @@
   `#gratuito`), perguntas (`#perguntas`, 8 itens de `src/lib/public-content.ts`) e chamada final.
   Estilos em `src/styles/landing.css`, importado em `App.tsx`.
 - `/sobre` (com `#contato`) e `/seguranca`: indexáveis, conteúdo estático.
+- `/guias`, `/guias/<slug>` (4 guias de `src/lib/guias.ts`) e `/calculadora/validade-cnh`,
+  `/calculadora/prazo-multa`: indexáveis; as calculadoras fazem a conta no navegador, sem rede.
 - `/documentos` e `/documentos/<slug>`: guias por documento (`src/lib/documentos-publicos.ts`).
   Slug com hífen; o tipo do banco fica em `tipo`. Slugs antigos com underline têm 301.
 - `/cadastro`, `/login`, `/obrigado`, `/privacidade`, `/termos`, 404: como antes.

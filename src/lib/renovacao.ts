@@ -40,7 +40,9 @@ const AUTORIDADES: Record<TipoDocumento, Autoridade> = {
     orgao: 'Detran',
     privado: false,
     termoBusca: 'Detran CNH',
-    portalUrl: 'https://www.gov.br/pt-br/servicos/renovar-a-carteira-nacional-de-habilitacao',
+    // A página federal de renovação saiu do ar (404 em 27/09/2026): a renovação é do
+    // Detran do estado; o portal da Senatran reúne CNH digital e cadastro positivo (RNPC).
+    portalUrl: 'https://portalservicos.senatran.serpro.gov.br/',
   },
   crlv: {
     rede: 'detran',
@@ -61,7 +63,7 @@ const AUTORIDADES: Record<TipoDocumento, Autoridade> = {
     privado: true,
     termoBusca: 'Detran multas',
     portalUrl: 'https://portalservicos.senatran.serpro.gov.br/',
-    observacao: 'Multas são consultadas e pagas online: no Detran do estado, no Portal de Serviços SENATRAN ou no app Carteira Digital de Trânsito, onde a adesão ao SNE dá 40% de desconto se você não apresentar defesa nem recurso.',
+    observacao: 'Multas são consultadas e pagas online: no Detran do estado, no Portal de Serviços SENATRAN ou no app CNH do Brasil (antiga Carteira Digital de Trânsito), onde a adesão ao SNE dá 40% de desconto se você não apresentar defesa nem recurso.',
   },
   passaporte: {
     rede: 'pf',
@@ -95,7 +97,7 @@ const AUTORIDADES: Record<TipoDocumento, Autoridade> = {
     orgao: 'CTPS Digital / unidade do trabalho',
     privado: false,
     termoBusca: 'Superintendência Regional do Trabalho carteira de trabalho',
-    portalUrl: 'https://www.gov.br/trabalho-e-emprego/pt-br/servicos/trabalhador/carteira-de-trabalho-digital',
+    portalUrl: 'https://www.gov.br/pt-br/servicos/obter-a-carteira-de-trabalho',
     observacao: 'A carteira de trabalho hoje é digital (app ou gov.br). O atendimento presencial é para casos específicos.',
   },
   alvara: {
@@ -110,7 +112,7 @@ const AUTORIDADES: Record<TipoDocumento, Autoridade> = {
     orgao: 'Órgão emissor',
     privado: true,
     termoBusca: '',
-    portalUrl: 'https://www.gov.br/receitafederal/pt-br/servicos/certidoes',
+    portalUrl: 'https://www.gov.br/pt-br/servicos/emitir-certidao-de-regularidade-fiscal',
     observacao: 'Certidões negativas (Receita Federal, FGTS, trabalhista, estadual, municipal) são emitidas online no portal de cada órgão.',
   },
   das_mei: {

@@ -106,7 +106,7 @@ const GUIDES: Record<string, Guide> = {
     risk: 'Perder o prazo custa o desconto (20%, ou 40% pelo SNE), a chance de defesa ou de indicar o condutor, e a multa vira débito que trava o licenciamento (CTB, art. 131, § 2º).',
     steps: [
       { title: 'Confira qual notificação recebeu', description: 'Autuação (sem valor, abre prazo de defesa e indicação do condutor) ou penalidade (com valor, vencimento e prazo de recurso). A data impressa é a que vale.', time: '5 min', cost: 'Sem custo' },
-      { title: 'Consulte a multa nos canais oficiais', description: 'Detran do estado, Portal SENATRAN ou app Carteira Digital de Trânsito, com login gov.br. Veja os links em "Onde consultar e pagar".', time: '10 min', cost: 'Sem custo' },
+      { title: 'Consulte a multa nos canais oficiais', description: 'Detran do estado, Portal SENATRAN ou app CNH do Brasil, com login gov.br. Veja os links em "Onde consultar e pagar".', time: '10 min', cost: 'Sem custo' },
       { title: 'Decida: pagar, indicar ou defender', description: 'Pagar até o vencimento dá 20% de desconto; pelo SNE, 40%, se você abrir mão de defesa e recurso. Indicar o condutor ou apresentar defesa vale até o prazo da notificação.', time: '15–30 min', cost: 'Valor da multa com desconto' },
       { title: 'Guarde o comprovante e encerre o prazo aqui', description: 'Se chegar uma nova notificação (penalidade ou resultado da defesa), cadastre o próximo prazo: os avisos recomeçam.', time: '5 min', cost: 'Sem custo' },
     ],

@@ -104,12 +104,12 @@ export function PlanosModal({ onClose, motivo = 'escolha', planoAtual = 'FREE', 
               : 'Todos os planos incluem documentos ilimitados, alertas por e-mail e notificações no navegador, além do guia de renovação.'}
           </p>
 
-          <div className="planos-grid" role="list" aria-label="Planos disponíveis">
+          <ul className="planos-grid" aria-label="Planos disponíveis">
             {PLANOS.map(plano => {
               const atual = planoAtual === plano.id
               const destaque = planoSugerido ? planoSugerido === plano.slug : plano.destaque
               return (
-                <article className={`plano-card ${destaque ? 'plano-card--destaque' : ''}`} role="listitem" key={plano.id}>
+                <li className={`plano-card ${destaque ? 'plano-card--destaque' : ''}`} key={plano.id}>
                   {destaque && <span className="plano-card__selo"><Sparkles size={12} strokeWidth={2} aria-hidden="true" /> {planoSugerido ? 'Sua escolha' : 'Mais escolhido'}</span>}
                   <h3>{plano.nome}</h3>
                   <p className="plano-card__descricao">{plano.descricao}</p>
@@ -125,10 +125,10 @@ export function PlanosModal({ onClose, motivo = 'escolha', planoAtual = 'FREE', 
                   >
                     {atual ? 'Seu plano atual' : assinando === plano.slug ? 'Abrindo pagamento…' : `Assinar ${plano.nome}`}
                   </Button>
-                </article>
+                </li>
               )
             })}
-          </div>
+          </ul>
 
           {erro && (
             <div className="bz-feedback bz-feedback--danger" role="alert">

@@ -33,6 +33,7 @@ const server = await createServer({
 try {
   const { AuthContext } = await server.ssrLoadModule('/src/context/auth-context.ts')
   const { DOCUMENTOS_PUBLICOS } = await server.ssrLoadModule('/src/lib/documentos-publicos.ts')
+  const { GUIAS } = await server.ssrLoadModule('/src/lib/guias.ts')
 
   const paginas = [
     { path: '/', pattern: '/', modulo: 'Landing_1' },
@@ -40,6 +41,10 @@ try {
     { path: '/sobre', pattern: '/sobre', modulo: 'Sobre' },
     { path: '/seguranca', pattern: '/seguranca', modulo: 'Seguranca' },
     ...DOCUMENTOS_PUBLICOS.map(item => ({ path: `/documentos/${item.slug}`, pattern: '/documentos/:tipo', modulo: 'DocumentoPublico' })),
+    { path: '/guias', pattern: '/guias', modulo: 'GuiasHub' },
+    ...GUIAS.map(guia => ({ path: `/guias/${guia.slug}`, pattern: '/guias/:slug', modulo: 'Guia' })),
+    { path: '/calculadora/validade-cnh', pattern: '/calculadora/validade-cnh', modulo: 'CalculadoraCnh' },
+    { path: '/calculadora/prazo-multa', pattern: '/calculadora/prazo-multa', modulo: 'CalculadoraMulta' },
   ]
 
   for (const pagina of paginas) {

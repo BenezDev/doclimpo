@@ -65,7 +65,9 @@
 .landing-custo p { flex: 1; margin: 0; color: #cdd6d2; font-size: 14.5px; line-height: 1.6; }
 .landing-custo a { display: inline-flex; align-items: center; gap: 5px; color: #8fe8b7; font-size: 12.5px; font-weight: 600; text-decoration: none; }
 .landing-custo a:hover { text-decoration: underline; text-underline-offset: 3px; }
-.landing-custo__cta { margin-top: 36px; }
+.landing-custo__cta { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 28px; margin-top: 36px; }
+.landing-custo__link { display: inline-flex; align-items: center; gap: 6px; color: #8fe8b7; font-size: 15px; font-weight: 600; text-decoration: none; }
+.landing-custo__link:hover { text-decoration: underline; text-underline-offset: 4px; }
 
 /* Como funciona: sequência real, por isso numerada. */
 .landing-passos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 40px; margin: 0; padding: 0; list-style: none; }
@@ -135,6 +137,7 @@
 .faq-answer { max-width: 68ch; padding: 0 30px 24px 0; color: var(--bz-text-muted); font-size: 15px; line-height: 1.75; }
 .faq-answer p { margin-bottom: 0; }
 .landing-faq__mais { margin: 24px 0 0; color: var(--bz-text-muted); font-size: 15px; }
+.landing-faq__mais a { text-decoration: underline; text-underline-offset: 3px; }
 
 /* CTA final */
 .landing-cta { padding-block: 0 96px; }

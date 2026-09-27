@@ -1,4 +1,5 @@
 import { DOCUMENTOS_PUBLICOS, documentoPublicoPorSlug } from './documentos-publicos.ts'
+import { GUIAS, calculadoraPorPath, guiaPorSlug } from './guias.ts'
 import { PLANOS } from './planos.ts'
 import { faqs, support } from './public-content.ts'
 
@@ -22,6 +23,10 @@ export const publicPages: Record<string, PageMeta> = {
   '/404': { title: 'Página não encontrada | DocLimpo', description: 'Este endereço não foi encontrado. Volte ao início do DocLimpo ou acesse seu painel de documentos.', index: false, path: '/404' },
   '/documentos': { title: 'Documentos e prazos: guia de validade e renovação | DocLimpo', description: 'CNH, CRLV, IPVA, multa de trânsito, passaporte, RG, seguro, plano de saúde e mais: quanto tempo vale cada documento, onde renovar e como receber aviso antes de vencer.', index: true, path: '/documentos' },
   ...Object.fromEntries(DOCUMENTOS_PUBLICOS.map(item => [`/documentos/${item.slug}`, { title: item.titulo, description: item.descricao, index: true, path: `/documentos/${item.slug}` }])),
+  '/guias': { title: 'Guias e calculadoras para quem dirige | DocLimpo', description: 'Calcule a validade da CNH e o prazo da multa e entenda o que o Código de Trânsito diz sobre CNH vencida, SNE e licenciamento atrasado.', index: true, path: '/guias' },
+  ...Object.fromEntries(GUIAS.map(guia => [`/guias/${guia.slug}`, { title: guia.titulo, description: guia.descricao, index: true, path: `/guias/${guia.slug}` }])),
+  '/calculadora/validade-cnh': { title: 'Calculadora de validade da CNH pela idade | DocLimpo', description: 'Informe a data de nascimento e a do exame médico e veja até quando a CNH vale: 10, 5 ou 3 anos pela idade. A conta é feita no seu navegador.', index: true, path: '/calculadora/validade-cnh' },
+  '/calculadora/prazo-multa': { title: 'Calculadora de prazo da multa: defesa e recurso | DocLimpo', description: 'Informe qual carta chegou e a data impressa nela e veja o prazo mínimo para defesa prévia, indicação do condutor e recurso, pelo Código de Trânsito.', index: true, path: '/calculadora/prazo-multa' },
 }
 
 export function getPageMeta(pathname: string): PageMeta {
@@ -73,12 +78,34 @@ export function structuredData(pathname: string): object[] {
   }
 
   const documento = meta.path.startsWith('/documentos/') ? documentoPublicoPorSlug(meta.path.slice('/documentos/'.length)) : null
-  const trilha = [{ nome: 'DocLimpo', path: '/' }, ...(meta.path.startsWith('/documentos') ? [{ nome: 'Documentos', path: '/documentos' }] : [])]
+  const guia = meta.path.startsWith('/guias/') ? guiaPorSlug(meta.path.slice('/guias/'.length)) : null
+  const calculadora = calculadoraPorPath(meta.path)
+  const semPonto = (texto: string) => texto.replace(/\.$/, '')
+
+  const trilha = [{ nome: 'DocLimpo', path: '/' }]
+  if (meta.path.startsWith('/documentos')) trilha.push({ nome: 'Documentos', path: '/documentos' })
+  if (meta.path.startsWith('/guias') || calculadora) trilha.push({ nome: 'Guias', path: '/guias' })
   if (documento) trilha.push({ nome: documento.nome, path: meta.path })
+  if (guia) trilha.push({ nome: semPonto(guia.h1), path: meta.path })
+  if (calculadora) trilha.push({ nome: calculadora.nome, path: meta.path })
   const breadcrumb = trilha.length > 1 ? [{
     '@type': 'BreadcrumbList',
     itemListElement: trilha.map((item, index) => ({ '@type': 'ListItem', position: index + 1, name: item.nome, item: `${siteOrigin}${item.path}` })),
   }] : []
-  const faqDoDocumento = documento ? [{ '@type': 'FAQPage', mainEntity: documento.faqs.map(item => pergunta(item.pergunta, item.resposta)) }] : []
-  return [{ '@context': 'https://schema.org', '@graph': [organizacao, ...breadcrumb, ...faqDoDocumento] }]
+
+  const artigo = guia ? [{
+    '@type': 'Article',
+    headline: semPonto(guia.h1),
+    description: guia.descricao,
+    inLanguage: 'pt-BR',
+    datePublished: guia.atualizadoEm,
+    dateModified: guia.atualizadoEm,
+    image: `${siteOrigin}/og.png`,
+    mainEntityOfPage: `${siteOrigin}${meta.path}`,
+    author: { '@id': organizacao['@id'] },
+    publisher: { '@id': organizacao['@id'] },
+  }] : []
+  const perguntas = documento?.faqs ?? guia?.faqs ?? calculadora?.faqs ?? []
+  const faq = perguntas.length ? [{ '@type': 'FAQPage', mainEntity: perguntas.map(item => pergunta(item.pergunta, item.resposta)) }] : []
+  return [{ '@context': 'https://schema.org', '@graph': [organizacao, ...breadcrumb, ...artigo, ...faq] }]
 }

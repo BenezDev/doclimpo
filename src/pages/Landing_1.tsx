@@ -158,6 +158,8 @@ export default function Landing() {
             </ul>
             <div className="landing-custo__cta">
               <ActionLink variant="primary" size="lg" to={cadastroCom('documento', 'cnh')}>Acompanhar minha CNH grátis<ArrowRight size={18} strokeWidth={2} aria-hidden="true" /></ActionLink>
+              <Link className="landing-custo__link" to="/calculadora/validade-cnh">Até quando vale minha CNH?<ArrowUpRight size={16} aria-hidden="true" /></Link>
+              <Link className="landing-custo__link" to="/calculadora/prazo-multa">Qual o prazo da minha multa?<ArrowUpRight size={16} aria-hidden="true" /></Link>
             </div>
           </div>
         </section>
@@ -272,9 +274,9 @@ export default function Landing() {
               </div>
               <ActionLink variant="secondary" size="md" to={cadastro}>Começar grátis<ArrowRight size={16} aria-hidden="true" /></ActionLink>
             </div>
-            <div className="planos-grid landing-planos" role="list" aria-label="Planos pagos">
+            <ul className="planos-grid landing-planos" aria-label="Planos pagos">
               {PLANOS.map(plano => (
-                <article className={`plano-card${plano.destaque ? ' plano-card--destaque' : ''}`} role="listitem" key={plano.id}>
+                <li className={`plano-card${plano.destaque ? ' plano-card--destaque' : ''}`} key={plano.id}>
                   {plano.destaque && <span className="plano-card__selo">Mais escolhido</span>}
                   <h3>{plano.nome}</h3>
                   <p className="plano-card__descricao">{plano.descricao}</p>
@@ -283,9 +285,9 @@ export default function Landing() {
                     {plano.beneficios.map(item => <li key={item}><Check size={14} strokeWidth={2.25} aria-hidden="true" />{item}</li>)}
                   </ul>
                   <ActionLink variant={plano.destaque ? 'primary' : 'secondary'} size="md" to={escolherPlano(plano.slug)}>Escolher {plano.nome}<ArrowRight size={16} aria-hidden="true" /></ActionLink>
-                </article>
+                </li>
               ))}
-            </div>
+            </ul>
             <p className="planos-nota">Você cria a conta e assina logo depois, pela Cakto, no cartão ou no Pix Automático. Desistência em até 7 dias com devolução integral. Detalhes nos <Link to="/termos">termos de uso</Link>.</p>
           </div>
         </section>

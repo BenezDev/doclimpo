@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { readFile, stat } from 'node:fs/promises'
+import { readdir, readFile, stat } from 'node:fs/promises'
 import { getPageMeta, publicPages } from '../src/lib/page-meta.ts'
 
 const dist = new URL('../dist/', import.meta.url)
@@ -40,7 +40,9 @@ for (const path of checks) {
   if (meta.index) assert.equal(blocos[0]['@context'], 'https://schema.org')
   for (const match of html.matchAll(/(?:src|href)="(\/assets\/[^"?#]+)"/g)) assert.ok(await fileExists(match[1]), `Asset ausente: ${match[1]}`)
 }
-for (const path of ['/favicon.svg', '/favicon.ico', '/apple-touch-icon.png', '/icon-192.png', '/icon-512.png', '/site.webmanifest', '/og.png', '/sw.js', '/sitemap.xml', '/robots.txt']) {
+const chaveIndexNow = (await readdir(dist)).find(nome => /^[0-9a-f]{32}\.txt$/.test(nome))
+assert.ok(chaveIndexNow, 'Chave do IndexNow ausente em dist/')
+for (const path of ['/favicon.svg', '/favicon.ico', '/apple-touch-icon.png', '/icon-192.png', '/icon-512.png', '/site.webmanifest', '/og.png', '/sw.js', '/sitemap.xml', '/robots.txt', `/${chaveIndexNow}`]) {
   const route = await resolveConfiguredRoute(path)
   assert.equal(route.file, path)
   assert.equal(route.status, 200)

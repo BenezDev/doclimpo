@@ -6,7 +6,7 @@
     {
       "src": "/(.*)",
       "headers": {
-        "Content-Security-Policy-Report-Only": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://*.supabase.co https://viacep.com.br; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'",
+        "Content-Security-Policy-Report-Only": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self' https://*.supabase.co https://viacep.com.br; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'",
         "X-Frame-Options": "DENY",
         "X-Content-Type-Options": "nosniff",
         "Referrer-Policy": "strict-origin-when-cross-origin",
@@ -139,6 +139,34 @@
     {
       "src": "/seguranca/?",
       "dest": "/seguranca/index.html"
+    },
+    {
+      "src": "/guias/?",
+      "dest": "/guias/index.html"
+    },
+    {
+      "src": "/guias/cnh-vencida/?",
+      "dest": "/guias/cnh-vencida/index.html"
+    },
+    {
+      "src": "/guias/desconto-multa-sne/?",
+      "dest": "/guias/desconto-multa-sne/index.html"
+    },
+    {
+      "src": "/guias/prazos-da-multa/?",
+      "dest": "/guias/prazos-da-multa/index.html"
+    },
+    {
+      "src": "/guias/licenciamento-atrasado/?",
+      "dest": "/guias/licenciamento-atrasado/index.html"
+    },
+    {
+      "src": "/calculadora/validade-cnh/?",
+      "dest": "/calculadora/validade-cnh/index.html"
+    },
+    {
+      "src": "/calculadora/prazo-multa/?",
+      "dest": "/calculadora/prazo-multa/index.html"
     },
     {
       "src": "/404(?:\\.html)?/?",

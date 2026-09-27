@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
-import { supabase } from '../integrations/supabase/client'
 import { AuthContext } from './auth-context'
+
+// O cliente do Supabase (~190 KB) fica fora do pacote inicial: as páginas
+// públicas aparecem sem esperar por ele e a sessão é conferida logo depois.
+// Enquanto isso, `loading` segue true e as rotas protegidas esperam.
+const carregarSupabase = () => import('../integrations/supabase/client').then(modulo => modulo.supabase)
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null)
@@ -9,21 +13,33 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-      setLoading(false)
+    let ativo = true
+    let cancelarAssinatura: (() => void) | undefined
+
+    carregarSupabase().then(supabase => {
+      if (!ativo) return
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!ativo) return
+        setSession(session)
+        setUser(session?.user ?? null)
+        setLoading(false)
+      })
+
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        setSession(session)
+        setUser(session?.user ?? null)
+      })
+      cancelarAssinatura = () => subscription.unsubscribe()
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-    })
-
-    return () => subscription.unsubscribe()
+    return () => {
+      ativo = false
+      cancelarAssinatura?.()
+    }
   }, [])
 
   const signOut = async () => {
+    const supabase = await carregarSupabase()
     await supabase.auth.signOut()
   }
 

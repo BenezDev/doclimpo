@@ -28,7 +28,7 @@ export const FONTES_NACIONAIS = {
     rotulo: 'Aderir ao SNE: 40% de desconto',
     url: 'https://portalservicos.senatran.serpro.gov.br/#/infracoes/minha-adesao-sne',
     verificadoEm: '2026-09-21',
-    observacao: 'Notificação eletrônica pelo app Carteira Digital de Trânsito. Vale para multas de órgãos aderentes, pagas até o vencimento, sem defesa nem recurso (CTB, art. 284, § 1º).',
+    observacao: 'Notificação eletrônica pelo app CNH do Brasil (antiga Carteira Digital de Trânsito) ou pelo Portal de Serviços da Senatran. Vale para multas de órgãos aderentes, pagas até o vencimento, sem defesa nem recurso (CTB, art. 284, § 1º).',
   },
 } as const satisfies Record<string, FonteConsulta>
 

@@ -16,6 +16,10 @@ import DocumentoPublico from './pages/DocumentoPublico'
 import Sobre from './pages/Sobre'
 import Seguranca from './pages/Seguranca'
 import NotFound from './pages/NotFound'
+import GuiasHub from './pages/GuiasHub'
+import Guia from './pages/Guia'
+import CalculadoraCnh from './pages/CalculadoraCnh'
+import CalculadoraMulta from './pages/CalculadoraMulta'
 
 const Login = lazy(() => import('./pages/Login'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
@@ -62,6 +66,10 @@ function App() {
           <Route path="/documentos/:tipo" element={<DocumentoPublico />} />
           <Route path="/sobre" element={<Sobre />} />
           <Route path="/seguranca" element={<Seguranca />} />
+          <Route path="/guias" element={<GuiasHub />} />
+          <Route path="/guias/:slug" element={<Guia />} />
+          <Route path="/calculadora/validade-cnh" element={<CalculadoraCnh />} />
+          <Route path="/calculadora/prazo-multa" element={<CalculadoraMulta />} />
           <Route path="/redefinir-senha" element={<RedefinirSenha />} />
           <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />

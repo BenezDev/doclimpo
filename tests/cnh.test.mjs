@@ -16,3 +16,11 @@ test('validade por faixa etária: 10, 5 e 3 anos (Lei 14.071/2020)', () => {
   assert.deepEqual(validadeCnh('1976-09-21', '2026-09-21'), { validade: '2031-09-21', anos: 5, idade: 50 })
   assert.equal(validadeCnh('1950-01-01', '2026-02-28').validade, '2029-02-28')
 })
+
+test('regra de 10/5/3 anos só vale para exames a partir de 12/04/2021', async () => {
+  const { regraAtualVale, INICIO_LEI_14071 } = await import('../src/lib/cnh.ts')
+  assert.equal(INICIO_LEI_14071, '2021-04-12')
+  assert.equal(regraAtualVale('2021-04-11'), false)
+  assert.equal(regraAtualVale('2021-04-12'), true)
+  assert.equal(regraAtualVale('2026-09-27'), true)
+})

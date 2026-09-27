@@ -1,10 +1,10 @@
 import { Link } from 'react-router-dom'
 import { Brand } from './Bezel'
 import { documentoPublicoPorSlug } from '../../lib/documentos-publicos'
+import { CALCULADORAS, GUIAS } from '../../lib/guias'
 import { support } from '../../lib/public-content'
 
 const docsDoCarro = ['cnh', 'crlv', 'ipva', 'multa', 'seguro']
-const outrosDocs = ['passaporte', 'rg', 'plano-de-saude']
 
 function linksDe(slugs: string[]) {
   return slugs.flatMap(slug => {
@@ -18,8 +18,8 @@ function linksDe(slugs: string[]) {
 export function SiteFooter() {
   const colunas = [
     { titulo: 'Produto', links: [{ to: '/#como-funciona', rotulo: 'Como funciona' }, { to: '/#planos', rotulo: 'Planos' }, { to: '/#perguntas', rotulo: 'Perguntas frequentes' }, { to: '/cadastro', rotulo: 'Criar conta grátis' }] },
-    { titulo: 'Para o carro', links: linksDe(docsDoCarro) },
-    { titulo: 'Outros documentos', links: [...linksDe(outrosDocs), { to: '/documentos', rotulo: 'Todos os documentos' }] },
+    { titulo: 'Para o carro', links: [...linksDe(docsDoCarro), { to: '/documentos', rotulo: 'Todos os documentos' }] },
+    { titulo: 'Guias grátis', links: [...CALCULADORAS.map(item => ({ to: item.path, rotulo: item.nome })), ...GUIAS.slice(0, 3).map(guia => ({ to: `/guias/${guia.slug}`, rotulo: guia.h1.split(':')[0] })), { to: '/guias', rotulo: 'Todos os guias' }] },
     { titulo: 'DocLimpo', links: [{ to: '/sobre', rotulo: 'Sobre' }, { to: '/seguranca', rotulo: 'Segurança' }, { to: '/privacidade', rotulo: 'Privacidade' }, { to: '/termos', rotulo: 'Termos de uso' }] },
   ]
 

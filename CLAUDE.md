@@ -35,10 +35,17 @@ nenhuma tela usa utilitários.
 Tom "amigo do motorista": carro primeiro (CNH, licenciamento, IPVA, multa), outros
 documentos como "e também". Símbolo = placa Mercosul com check verde (`BrandMark` em
 `Bezel.tsx`; mesmo desenho em `public/favicon.svg` e nos PNGs). Títulos em **Onest**,
-texto em **Inter**, números com `tabular-nums` (sem fonte mono). Verde `#2fd97f` nos
+texto em **Inter**, servidas pelo próprio site (`@fontsource-variable`, importadas em `main.tsx`;
+nada de Google Fonts), números com `tabular-nums` (sem fonte mono). Verde `#2fd97f` nos
 botões, `#0a6b3e` em links, asfalto `#101614` nas faixas escuras, azul Mercosul só na
 `Placa`. Nada de número de clientes, nota ou depoimento que não exista: prova vem de fonte
 oficial com `verificadoEm` (ex.: `src/data/custo-de-esquecer.ts`, artigos do CTB).
+
+Regras de trânsito citadas no site vêm do CTB compilado do Planalto (já com a Lei 15.428/2026:
+renovação automática da CNH para quem está no RNPC, **com exame médico obrigatório**, art. 268-A,
+§ 7º). O app federal se chama **CNH do Brasil** (antiga Carteira Digital de Trânsito). Links
+oficiais mudam sem aviso: em 27/09/2026 três estavam em 404 e foram trocados; confira com curl
+antes de publicar link novo.
 
 ## Estrutura
 
@@ -46,7 +53,8 @@ oficial com `verificadoEm` (ex.: `src/data/custo-de-esquecer.ts`, artigos do CTB
 src/
   pages/          Landing_1 · Login (com recuperação de senha) · RedefinirSenha · Onboarding ·
                   Dashboard · DocumentoDetalhe · Conta · Privacy · Termos · ThankYou · NotFound ·
-                  DocumentosHub e DocumentoPublico (/documentos/<slug>, SEO) · Sobre · Seguranca
+                  DocumentosHub e DocumentoPublico (/documentos/<slug>, SEO) · Sobre · Seguranca ·
+                  GuiasHub e Guia (/guias/<slug>) · CalculadoraCnh e CalculadoraMulta (/calculadora/*)
   components/ui/  AddDocumentModal · EnderecoModal · OndeRenovar · OndeConsultarMultas · RenovarDialog ·
                   SugestaoData · VeiculoForm · CookieConsent · PublicShell · SiteFooter · Placa · Bezel
   context/        auth-context.ts (contexto) · AuthContext.tsx (provider)
@@ -54,7 +62,7 @@ src/
   lib/            datas.ts (parse por partes, dias, formatação) · erros.ts · planos.ts (catálogo,
                   canais, WHATSAPP_DISPONIVEL) · agenda.ts (.ics/Google Agenda) · cnh.ts ·
                   calendario-veicular.ts · multas.ts (prazos do CTB, links por UF) · veiculos.ts (placa) ·
-                  push.ts · telefone.ts · documentos-publicos.ts
+                  push.ts · telefone.ts · documentos-publicos.ts · guias.ts (guias e calculadoras, com fonte)
   data/           calendario-veicular.ts (IPVA/licenciamento por UF e placa) · consulta-multas-uf.ts
                   (onde consultar multas por UF + SENATRAN/SNE) · custo-de-esquecer.ts (CTB) — só
                   fonte oficial, com `verificadoEm`
@@ -66,6 +74,7 @@ supabase/
   templates/      e-mails do Supabase Auth com a marca (colados no painel; ver README.md lá)
 scripts/cakto-provisionar.mjs  cria produtos/ofertas/webhook na Cakto (chaves só no shell)
 scripts/prerender.mjs          escreve o HTML das páginas públicas indexáveis em dist/ (roda no build)
+scripts/indexnow.mjs           avisa Bing/Yandex das páginas indexáveis (rodar depois de publicar páginas públicas)
 build/page-html.ts             title/description/OG/canonical/JSON-LD por rota, sitemap e robots
 ```
 
@@ -74,7 +83,9 @@ de propósito, senão o fast refresh do Vite quebra.
 
 ## Banco
 
-10 tabelas, todas com RLS habilitado e políticas por `auth.uid()`. **O RLS é a
+10 tabelas, todas com RLS habilitado e políticas por `(select auth.uid())` (sempre dentro do
+`select`: o Postgres calcula uma vez por consulta). Funções auxiliares SECURITY DEFINER usadas só
+em políticas ficam no schema `private` (fora da API), como `private.familia_titular_de`. **O RLS é a
 parte mais confiável do projeto** — verificado ativo em produção.
 
 Pontos a saber:
@@ -175,7 +186,12 @@ SEO: páginas indexáveis ganham HTML pré-renderizado (`scripts/prerender.mjs`)
 (`structuredData` em `page-meta.ts`). Por isso Landing, DocumentosHub, DocumentoPublico, Sobre
 e Seguranca são importadas direto em `App.tsx`, não com `lazy`: com `lazy`, o React trocaria o
 HTML pronto pela tela de carregamento. Slug público ≠ tipo do banco (`plano-de-saude` →
-`plano_saude`); slug antigo tem 301 em `vercel.json`. A recuperação de senha exige `<APP_URL>/redefinir-senha` na lista de Redirect
+`plano_saude`); slug antigo tem 301 em `vercel.json`. Depois de publicar páginas públicas novas, rode
+`node scripts/indexnow.mjs` (Bing/Yandex); o Google depende do Search Console.
+
+Desempenho: o cliente do Supabase é carregado por `import()` dentro do `AuthProvider`, fora do
+pacote inicial. Não importe `integrations/supabase/client` (nem framer-motion) em nada que as
+páginas públicas carreguem direto; use nas páginas lazy. A recuperação de senha exige `<APP_URL>/redefinir-senha` na lista de Redirect
 URLs do painel do Supabase (Authentication → URL Configuration).
 
 ## Variáveis
