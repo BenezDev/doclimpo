@@ -39,6 +39,21 @@ for (const path of checks) {
   assert.equal(blocos.length, meta.index ? 1 : 0, `JSON-LD em ${path}`)
   if (meta.index) assert.equal(blocos[0]['@context'], 'https://schema.org')
   for (const match of html.matchAll(/(?:src|href)="(\/assets\/[^"?#]+)"/g)) assert.ok(await fileExists(match[1]), `Asset ausente: ${match[1]}`)
+  // A CSP é `script-src 'self'`: um <script> com código no próprio HTML seria
+  // bloqueado e a página quebraria em silêncio. JSON-LD não executa, então
+  // passa. Todo script de verdade tem que vir de arquivo nosso.
+  for (const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)) {
+    const [, atributos, conteudo] = match
+    if (/type="application\/ld\+json"/.test(atributos)) continue
+    assert.match(atributos, /\ssrc="\/[^"]+"/, `Script inline bloqueado pela CSP em ${path}: ${conteudo.trim().slice(0, 80)}`)
+  }
+  // Subrecursos do próprio domínio (script, folha de estilo, ícone, manifest).
+  // `href` de <a> fica fora: aquilo é rota da aplicação, não arquivo.
+  for (const tag of html.matchAll(/<(?:script|link|img)\b[^>]*>/g)) {
+    const recurso = tag[0].match(/(?:src|href)="(\/[^"?#][^"?#]*)"/)
+    if (!recurso || recurso[1].startsWith('/assets/')) continue
+    assert.ok(await fileExists(recurso[1]), `Subrecurso ausente: ${recurso[1]} (${path})`)
+  }
 }
 const chaveIndexNow = (await readdir(dist)).find(nome => /^[0-9a-f]{32}\.txt$/.test(nome))
 assert.ok(chaveIndexNow, 'Chave do IndexNow ausente em dist/')

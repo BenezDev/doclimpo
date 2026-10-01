@@ -1,21 +1,13 @@
 import { z } from 'zod'
 import { ehUf } from './calendario-veicular.ts'
+import { TIPOS_DOCUMENTO, type TipoDocumento } from './tipos-documento.ts'
 import { normalizarPlaca, placaValida } from './veiculos.ts'
 
 // Espelho, no cliente, das regras que o banco impõe (ver migration
 // 20260911120000_seguranca_constraints.sql). O banco é a autoridade; isto é
 // UX + defesa em profundidade. Lógica pura, testável com node:test.
 
-export const TIPOS_DOCUMENTO = [
-  'cnh', 'crlv', 'ipva', 'multa', 'passaporte', 'rg', 'seguro', 'plano_saude', 'carteira_trabalho',
-  'garantia', 'contrato', 'exame',
-  'alvara', 'certidao', 'das_mei', 'outro',
-] as const
-
-// Tipos que só fazem sentido para a empresa (plano MEI).
-export const TIPOS_EMPRESARIAIS = ['alvara', 'certidao', 'das_mei'] as const
-
-export type TipoDocumento = (typeof TIPOS_DOCUMENTO)[number]
+export { TIPOS_DOCUMENTO, type TipoDocumento }
 
 export const conviteSchema = z.object({
   email: z.string().trim().toLowerCase().email('Informe um e-mail válido.').max(254),

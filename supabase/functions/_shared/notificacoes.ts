@@ -29,6 +29,65 @@ export function formatarData(iso: string): string {
   return `${dia}/${mes}/${ano}`;
 }
 
+// Janelas de alerta, da mais apertada para a mais larga. Espelho de
+// JANELAS_ALERTA em src/lib/planos.ts — tests/canais.test.mjs compara as duas
+// listas, então mudar aqui sem mudar lá quebra o teste.
+export const JANELAS_ALERTA = [1, 7, 30, 90] as const;
+
+// O produto fala em datas do Brasil, mas a função roda em UTC. O horário de
+// verão acabou em 2019, então o deslocamento é fixo: UTC-3.
+const DESLOCAMENTO_BR_MS = 3 * 60 * 60 * 1000;
+
+// Dia no calendário brasileiro (AAAA-MM-DD) de um instante qualquer.
+export function dataLocalBr(instante: Date | string): string {
+  const ms = typeof instante === "string" ? Date.parse(instante) : instante.getTime();
+  return new Date(ms - DESLOCAMENTO_BR_MS).toISOString().slice(0, 10);
+}
+
+// Dias de calendário entre duas datas AAAA-MM-DD. Em UTC a divisão é exata:
+// nenhum dia tem 23 ou 25 horas.
+export function diasEntre(de: string, ate: string): number {
+  return Math.round((Date.parse(`${ate}T00:00:00Z`) - Date.parse(`${de}T00:00:00Z`)) / 86400000);
+}
+
+export function somarDiasISO(data: string, dias: number): string {
+  return new Date(Date.parse(`${data}T00:00:00Z`) + dias * 86400000).toISOString().slice(0, 10);
+}
+
+// Quantos ids cabem em um `.in(...)`. O PostgREST recebe o filtro na linha de
+// requisição, que os servidores cortam por volta de 8 KB; um uuid com vírgula
+// gasta 37 bytes, então 100 ids (~3,7 KB) ficam com folga e 1000 estourariam.
+export const IDS_POR_CONSULTA = 100;
+
+export function emLotes<T>(itens: T[], tamanho = IDS_POR_CONSULTA): T[][] {
+  const lotes: T[][] = [];
+  for (let inicio = 0; inicio < itens.length; inicio += tamanho) lotes.push(itens.slice(inicio, inicio + tamanho));
+  return lotes;
+}
+
+// Janela que o documento deve receber hoje, ou null quando nenhuma se aplica.
+//
+// A janela vigente é a mais apertada que o documento já alcançou e que ele
+// ainda não tinha ultrapassado quando foi cadastrado — esse segundo teste
+// evita que um documento cadastrado a três dias do vencimento receba de uma
+// vez os avisos de 90, 30 e 7 dias.
+//
+// Como a regra olha "já alcançou" em vez de "alcança exatamente hoje", a
+// rodada é auto-corretiva: se o cron falhar um dia, a mesma janela continua
+// sendo a vigente amanhã e o aviso sai com atraso em vez de se perder. O
+// índice único (documento_id, days_before_expiry, notification_type) garante
+// que ele não saia duas vezes.
+export function janelaDoDia(doc: { data_vencimento: string; criado_em: string }, hoje: string): number | null {
+  const restantes = diasEntre(hoje, doc.data_vencimento);
+  // Vencido: o aviso é a janela 0, enfileirada pelo outro caminho da rodada.
+  if (restantes < 0) return null;
+  const antecedencia = diasEntre(dataLocalBr(doc.criado_em), doc.data_vencimento);
+  for (const janela of JANELAS_ALERTA) {
+    if (janela >= restantes && antecedencia >= janela) return janela;
+  }
+  return null;
+}
+
 // Remove controle, quebras e espaços em série. Texto de usuário (apelido)
 // entra em assunto de e-mail, push e parâmetro de template do WhatsApp — a
 // Meta recusa quebras de linha, tabulações e 4+ espaços seguidos.
@@ -44,9 +103,10 @@ export function rotuloDocumento(documento: { tipo: string; apelido: string | nul
 }
 
 // Frase única para assunto de e-mail, título de push e mensagem de WhatsApp.
-export function textoAlerta(dias: number | null, rotulo: string): { titulo: string; prazo: string } {
-  const venceu = dias !== null && dias <= 0;
-  const prazo = venceu ? "venceu" : `vence em ${dias} ${dias === 1 ? "dia" : "dias"}`;
+// `dias` é a distância real até o vencimento no dia do envio, não a janela que
+// enfileirou o aviso: um aviso que ficou na fila continua dizendo a verdade.
+export function textoAlerta(dias: number, rotulo: string): { titulo: string; prazo: string } {
+  const prazo = dias < 0 ? "venceu" : dias === 0 ? "vence hoje" : `vence em ${dias} ${dias === 1 ? "dia" : "dias"}`;
   return { titulo: `Seu ${rotulo} ${prazo}`, prazo };
 }
 

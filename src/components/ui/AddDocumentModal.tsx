@@ -4,31 +4,13 @@ import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../integrations/supabase/client'
 import { interpretarErro, textoDaFalha, type FalhaAoSalvar } from '../../lib/erros'
+import { tiposDisponiveis } from '../../lib/tipos-documento'
 import { documentoSchema } from '../../lib/validacao'
 import { bezelSpring } from '../../lib/motion'
 import { Button, DocumentGlyph } from './Bezel'
 import { finalDaPlaca } from '../../lib/calendario-veicular'
 import type { Veiculo } from '../../lib/veiculos'
 import { SugestaoData, type ExtraVeicular } from './SugestaoData'
-
-const TIPOS = [
-  { id: 'cnh', label: 'CNH', description: 'Carteira de motorista' },
-  { id: 'crlv', label: 'CRLV', description: 'Documento do veículo' },
-  { id: 'ipva', label: 'IPVA', description: 'Imposto do veículo' },
-  { id: 'multa', label: 'Multa de trânsito', description: 'Defesa, desconto ou recurso' },
-  { id: 'passaporte', label: 'Passaporte', description: 'Documento de viagem' },
-  { id: 'rg', label: 'RG', description: 'Identidade' },
-  { id: 'seguro', label: 'Seguro auto', description: 'Apólice do veículo' },
-  { id: 'plano_saude', label: 'Plano de saúde', description: 'Plano médico' },
-  { id: 'carteira_trabalho', label: 'Carteira de trabalho', description: 'CTPS' },
-  { id: 'garantia', label: 'Garantia', description: 'Produto ou serviço' },
-  { id: 'contrato', label: 'Contrato', description: 'Aluguel ou prestação' },
-  { id: 'exame', label: 'Exame periódico', description: 'ASO ou atestado' },
-  { id: 'alvara', label: 'Alvará', description: 'Funcionamento da empresa', empresarial: true },
-  { id: 'certidao', label: 'Certidão negativa', description: 'Receita, FGTS, trabalhista', empresarial: true },
-  { id: 'das_mei', label: 'DAS-MEI', description: 'Guia mensal do MEI', empresarial: true },
-  { id: 'outro', label: 'Outro', description: 'Outro documento' },
-]
 
 interface Props {
   dark: boolean
@@ -51,7 +33,7 @@ const TIPOS_VEICULARES = ['ipva', 'crlv', 'multa']
 
 export function AddDocumentModal(props: Props) {
   const { onClose, onSuccess, onLimite, mostrarEmpresariais = false, ufPadrao, tipoInicial, veiculo } = props
-  const tipos = TIPOS.filter(item => mostrarEmpresariais || !item.empresarial)
+  const tipos = tiposDisponiveis(mostrarEmpresariais)
   const inicial = tipos.find(item => item.id === tipoInicial)?.id ?? ''
   const { user } = useAuth()
   const reduceMotion = useReducedMotion()

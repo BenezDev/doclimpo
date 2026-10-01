@@ -123,9 +123,33 @@ de SKIPPED/FAILED. Push: tabela `push_subscriptions` (allowlist de hosts no CHEC
 de `profiles` só mudam pelo servidor (trigger `protect_whatsapp_columns`); a interface e a cópia só
 mostram o canal com `WHATSAPP_DISPONIVEL = true` em `src/lib/planos.ts`.
 
-Janelas: **90 / 30 / 7 / 1** dias (`JANELAS_ALERTA` em `planos.ts`, espelho de `ALERT_DAYS`).
-Se mudar, alinhe os lugares que prometem prazos ao usuário: landing, onboarding, tela de
+Janelas: **90 / 30 / 7 / 1** dias — `JANELAS_ALERTA` existe duas vezes, em `src/lib/planos.ts`
+(ordem decrescente, para a cópia do site) e em `_shared/notificacoes.ts` (crescente, para a
+rodada); `tests/canais.test.mjs` compara as duas, então mudar uma sem a outra quebra o teste. Se
+mudar, alinhe também os lugares que prometem prazos ao usuário: landing, onboarding, tela de
 detalhe, `.ics` e textos legais.
+
+A rodada **não** casa a data exata de cada janela. `janelaDoDia()` devolve a janela mais apertada
+que o documento já alcançou e que ele ainda não tinha ultrapassado quando foi cadastrado — esse
+segundo teste é o que evita um documento cadastrado a três dias do vencimento receber 90, 30 e 7
+de uma vez. Consequência de propósito: um dia de cron perdido **atrasa** o aviso em vez de
+perdê-lo, porque a mesma janela segue vigente amanhã, e o índice único
+`notifications_doc_janela_canal_unico` impede o aviso repetido. Não troque isso por um `.eq()` na
+data: era assim antes e um dia de cron fora derrubava o aviso para sempre.
+
+O texto do aviso usa os **dias reais** até o vencimento no momento do envio (`diasEntre`), não a
+janela gravada em `days_before_expiry` — essa coluna serve só como chave de idempotência. Uma
+linha que esperou na fila, ou cuja data o usuário corrigiu depois, continua dizendo a verdade.
+`dataLocalBr()` resolve o dia no calendário brasileiro (UTC-3 fixo, sem horário de verão desde
+2019): a função roda em UTC e sem isso um cadastro às 22:00 perderia um dia de antecedência.
+
+Escala: a varredura pagina de 1000 em 1000 (limite do PostgREST — sem isso a rodada ignorava
+documentos em silêncio) e enfileira com uma consulta de fila mais um `INSERT` em lote.
+`send-pending-notifications` lê perfis e documentos do lote em duas consultas e envia com
+paralelismo limitado (`ENVIOS_SIMULTANEOS`), para o lote caber na janela de execução sem estourar
+o limite de envio do Resend. Próximo gargalo conhecido: um usuário com vários documentos no mesmo
+dia recebe um e-mail por documento. Agrupar em digest é a correção, e muda o modelo de uma linha
+de `notifications` por documento.
 
 Renovação: `rpc('renovar_documento')` resolve a linha antiga e cria a nova (`renovado_de`);
 alertas recomeçam porque o id é novo. O Dashboard mostra o histórico na aba Resolvidos.

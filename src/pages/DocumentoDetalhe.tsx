@@ -29,31 +29,13 @@ import { useAuth } from '../hooks/useAuth'
 import { useTheme } from '../hooks/useTheme'
 import { diasRestantes, formatarDataLonga, statusPorDias } from '../lib/datas'
 import { JANELAS_ALERTA, ROTULO_CANAL, canaisDoPlano, ehPago } from '../lib/planos'
+import { rotuloDoTipo } from '../lib/tipos-documento'
 import { usePlano } from '../hooks/usePlano'
 import { gerarIcs, linkGoogleAgenda, nomeArquivoIcs } from '../lib/agenda'
 import { supabase } from '../integrations/supabase/client'
 import type { PerfilEndereco } from '../lib/endereco'
 import type { Tables } from '../integrations/supabase/types'
 import { bezelSpring, stagger } from '../lib/motion'
-
-const LABELS: Record<string, string> = {
-  cnh: 'CNH',
-  crlv: 'CRLV',
-  ipva: 'IPVA',
-  multa: 'Multa de trânsito',
-  passaporte: 'Passaporte',
-  rg: 'RG',
-  seguro: 'Seguro auto',
-  plano_saude: 'Plano de saúde',
-  carteira_trabalho: 'Carteira de trabalho',
-  garantia: 'Garantia',
-  contrato: 'Contrato',
-  exame: 'Exame periódico',
-  alvara: 'Alvará',
-  certidao: 'Certidão negativa',
-  das_mei: 'DAS-MEI',
-  outro: 'Outro',
-}
 
 interface GuideStep {
   title: string
@@ -230,7 +212,7 @@ export default function DocumentoDetalhe() {
   const days = diasRestantes(document.data_vencimento)
   const status = statusPorDias(days)
   const guide = GUIDES[document.tipo] || DEFAULT_GUIDE
-  const documentName = document.apelido || LABELS[document.tipo] || document.tipo
+  const documentName = document.apelido || rotuloDoTipo(document.tipo)
 
   // Evento de agenda: só o rótulo e o link do painel. Nada de número de documento.
   const ehMulta = document.tipo === 'multa'
@@ -238,7 +220,7 @@ export default function DocumentoDetalhe() {
   const eventoAgenda = {
     titulo: `Vence: ${documentName}`,
     dataISO: document.data_vencimento,
-    descricao: `${LABELS[document.tipo] || 'Documento'} cadastrado no DocLimpo. Avisos por e-mail em ${JANELAS_ALERTA.join(', ')} dias antes.`,
+    descricao: `${rotuloDoTipo(document.tipo)} cadastrado no DocLimpo. Avisos por e-mail em ${JANELAS_ALERTA.join(', ')} dias antes.`,
     url: `${window.location.origin}/documento/${document.id}`,
   }
   const baixarIcs = () => {
@@ -350,7 +332,7 @@ export default function DocumentoDetalhe() {
           <div className="detail-heading__identity">
             <DocumentGlyph type={document.tipo} size="lg" />
             <div>
-              <span className="bz-micro">{LABELS[document.tipo] || document.tipo}</span>
+              <span className="bz-micro">{rotuloDoTipo(document.tipo)}</span>
               <h1>{documentName}</h1>
               <StatusPill status={status.id} label={status.label} />
             </div>
@@ -426,7 +408,7 @@ export default function DocumentoDetalhe() {
           <section className="detail-guide">
             <div className="detail-guide__header">
               <span className="bz-micro">{ehMulta ? 'Roteiro da multa' : 'Roteiro de renovação'}</span>
-              <h2>Próximos passos para {LABELS[document.tipo] || document.tipo}</h2>
+              <h2>Próximos passos para {rotuloDoTipo(document.tipo)}</h2>
               <p>Use isto como checklist inicial. Regras, taxas e prazos oficiais podem mudar.</p>
             </div>
             <div className="detail-guide__steps">

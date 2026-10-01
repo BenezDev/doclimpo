@@ -37,6 +37,7 @@ import { LIMITE_VEICULOS, type Veiculo } from '../lib/veiculos'
 import { Placa } from '../components/ui/Placa'
 import { planoIntent } from '../lib/public-content'
 import { diasRestantes, formatarData, statusPorDias } from '../lib/datas'
+import { rotuloDoTipo } from '../lib/tipos-documento'
 import { bezelSpring, stagger } from '../lib/motion'
 
 interface Documento {
@@ -48,25 +49,6 @@ interface Documento {
 }
 
 type Filter = 'todos' | 'atencao' | 'criticos' | 'resolvidos'
-
-const LABELS: Record<string, string> = {
-  cnh: 'CNH',
-  crlv: 'CRLV',
-  ipva: 'IPVA',
-  multa: 'Multa de trânsito',
-  passaporte: 'Passaporte',
-  rg: 'RG',
-  seguro: 'Seguro auto',
-  plano_saude: 'Plano de saúde',
-  carteira_trabalho: 'Carteira de trabalho',
-  garantia: 'Garantia',
-  contrato: 'Contrato',
-  exame: 'Exame periódico',
-  alvara: 'Alvará',
-  certidao: 'Certidão negativa',
-  das_mei: 'DAS-MEI',
-  outro: 'Outro',
-}
 
 function progressFor(dias: number) {
   if (dias > 90) return 4
@@ -268,7 +250,7 @@ export default function Dashboard() {
       {renovando && (
         <RenovarDialog
           documento={renovando}
-          nome={renovando.apelido || LABELS[renovando.tipo] || renovando.tipo}
+          nome={renovando.apelido || rotuloDoTipo(renovando.tipo)}
           onClose={() => setRenovando(null)}
           onRenovado={() => { setRenovando(null); reloadDocuments() }}
           onEncerrado={() => { setRenovando(null); reloadDocuments() }}
@@ -348,7 +330,7 @@ export default function Dashboard() {
             {nextDocument ? (
               <>
                 <strong className="bz-data">{Math.abs(nextDocument.days)}</strong>
-                <span>{nextDocument.days < 0 ? 'dias em atraso' : 'dias restantes'} · {nextDocument.apelido || LABELS[nextDocument.tipo]}</span>
+                <span>{nextDocument.days < 0 ? 'dias em atraso' : 'dias restantes'} · {nextDocument.apelido || rotuloDoTipo(nextDocument.tipo)}</span>
               </>
             ) : (
               <>
@@ -490,8 +472,8 @@ export default function Dashboard() {
                       <div className="documents-table__document" role="cell">
                         <DocumentGlyph type={document.tipo} />
                         <div>
-                          <strong>{document.apelido || LABELS[document.tipo] || document.tipo}</strong>
-                          <span>{LABELS[document.tipo] || document.tipo}</span>
+                          <strong>{document.apelido || rotuloDoTipo(document.tipo)}</strong>
+                          <span>{rotuloDoTipo(document.tipo)}</span>
                         </div>
                       </div>
                       <div role="cell"><StatusPill status={status.id} label={status.label} /></div>
@@ -532,8 +514,8 @@ export default function Dashboard() {
                       <div className="document-card__head">
                         <DocumentGlyph type={document.tipo} />
                         <div className="document-card__identity">
-                          <strong>{document.apelido || LABELS[document.tipo] || document.tipo}</strong>
-                          <span>{LABELS[document.tipo] || document.tipo}</span>
+                          <strong>{document.apelido || rotuloDoTipo(document.tipo)}</strong>
+                          <span>{rotuloDoTipo(document.tipo)}</span>
                         </div>
                         <div className="document-card__days bz-data">
                           {historico ? '—' : quantosDias(document.days)}

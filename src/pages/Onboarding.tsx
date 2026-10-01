@@ -6,28 +6,14 @@ import { Brand, Button, DocumentGlyph, SuccessMark, ThemeToggle } from '../compo
 import { EnderecoModal } from '../components/ui/EnderecoModal'
 import { PlanosModal } from '../components/ui/PlanosModal'
 import { useAuth } from '../hooks/useAuth'
+import { usePlano } from '../hooks/usePlano'
 import { useTheme } from '../hooks/useTheme'
 import { supabase } from '../integrations/supabase/client'
 import { interpretarErro, textoDaFalha, type FalhaAoSalvar } from '../lib/erros'
+import { TIPOS, tiposDisponiveis } from '../lib/tipos-documento'
 import { documentoSchema } from '../lib/validacao'
 import { documentIntent, withIntent } from '../lib/public-content'
 import { SugestaoData, type ExtraVeicular } from '../components/ui/SugestaoData'
-
-const TIPOS = [
-  { id: 'cnh', label: 'CNH', description: 'Carteira de motorista' },
-  { id: 'crlv', label: 'CRLV', description: 'Documento do veículo' },
-  { id: 'ipva', label: 'IPVA', description: 'Imposto do veículo' },
-  { id: 'multa', label: 'Multa de trânsito', description: 'Defesa, desconto ou recurso' },
-  { id: 'passaporte', label: 'Passaporte', description: 'Documento de viagem' },
-  { id: 'rg', label: 'RG', description: 'Identidade' },
-  { id: 'seguro', label: 'Seguro auto', description: 'Apólice do veículo' },
-  { id: 'plano_saude', label: 'Plano de saúde', description: 'Plano médico' },
-  { id: 'carteira_trabalho', label: 'Carteira de trabalho', description: 'CTPS' },
-  { id: 'garantia', label: 'Garantia', description: 'Produto ou serviço' },
-  { id: 'contrato', label: 'Contrato', description: 'Aluguel ou prestação' },
-  { id: 'exame', label: 'Exame periódico', description: 'ASO ou atestado' },
-  { id: 'outro', label: 'Outro', description: 'Outro documento' },
-]
 
 export default function Onboarding() {
   const { user } = useAuth()
@@ -35,6 +21,7 @@ export default function Onboarding() {
   const { search } = useLocation()
   const reduceMotion = useReducedMotion()
   const { dark, toggleTheme } = useTheme()
+  const { plano } = usePlano()
   const [step, setStep] = useState(1)
   const [tipo, setTipo] = useState(() => documentIntent(search))
   // Leva ?plano= adiante: o painel abre os planos com o escolhido na landing.
@@ -49,6 +36,7 @@ export default function Onboarding() {
 
   const nome = user?.user_metadata?.nome || 'usuário'
   const selectedDocument = TIPOS.find(item => item.id === tipo)
+  const tipos = tiposDisponiveis(plano === 'MEI')
   const stepMotion = reduceMotion
     ? {}
     : {
@@ -128,7 +116,7 @@ export default function Onboarding() {
               </div>
 
               <div className="document-picker" role="list" aria-label="Tipos de documento">
-                {TIPOS.map(item => (
+                {tipos.map(item => (
                   <button
                     className={`document-option ${tipo === item.id ? 'is-selected' : ''}`}
                     key={item.id}

@@ -1,17 +1,50 @@
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { compararSegredo } from "../_shared/seguranca.ts";
-import { type Canal, canaisParaUsuario, rotuloDocumento, textoAlerta } from "../_shared/notificacoes.ts";
+import {
+  type Canal,
+  canaisParaUsuario,
+  dataLocalBr,
+  emLotes,
+  JANELAS_ALERTA,
+  janelaDoDia,
+  rotuloDocumento,
+  somarDiasISO,
+  textoAlerta,
+} from "../_shared/notificacoes.ts";
 
-// Janelas alinhadas com o que a interface promete ao usuário (90/30/7),
-// mais um lembrete na véspera. Espelhadas em src/lib/planos.ts (JANELAS_ALERTA).
-const ALERT_DAYS = [90, 30, 7, 1];
+// Rodada diária: decide quais avisos entram na fila. Quem envia é
+// send-pending-notifications.
+//
+// A varredura olha a faixa inteira (hoje até hoje + 90 dias) e pergunta a
+// `janelaDoDia` qual janela cada documento alcançou, em vez de casar a data
+// exata de cada janela. Com isso um dia de cron perdido atrasa o aviso em vez
+// de perdê-lo para sempre — ver o comentário da função em _shared.
+
+// PostgREST devolve no máximo 1000 linhas por consulta; a varredura pagina.
+const PAGINA = 1000;
+// Lote de INSERT. O índice único cuida da idempotência; o lote só evita um
+// comando gigante.
+const LOTE_INSERT = 500;
+const JANELA_MAIS_LARGA = Math.max(...JANELAS_ALERTA);
 
 interface DocumentoFila {
   id: string;
   usuario_id: string;
   tipo: string;
   apelido: string | null;
+  data_vencimento: string;
+  criado_em: string;
+}
+
+interface LinhaFila {
+  usuario_id: string;
+  documento_id: string;
+  notification_type: Canal;
+  status: "PENDING";
+  days_before_expiry: number;
+  scheduled_date: string;
+  content: string;
 }
 
 // Canais que cada usuário pode receber hoje: preferências + plano efetivo
@@ -43,39 +76,63 @@ async function resolverCanais(supabase: SupabaseClient, cache: Map<string, Canal
   return canais;
 }
 
-// Uma linha por canal. O índice único (documento, janela, canal) garante a
-// idempotência mesmo se duas rodadas se cruzarem: 23505 = já enfileirado.
-async function enfileirar(
-  supabase: SupabaseClient,
-  doc: DocumentoFila,
-  dias: number,
-  canais: Canal[],
-): Promise<{ criadas: number; erros: string[] }> {
-  const resultado = { criadas: 0, erros: [] as string[] };
-  const { titulo } = textoAlerta(dias, rotuloDocumento(doc));
-  for (const canal of canais) {
-    const { data: existente } = await supabase
-      .from("notifications")
-      .select("id")
-      .eq("documento_id", doc.id)
-      .eq("days_before_expiry", dias)
-      .eq("notification_type", canal)
-      .limit(1);
-    if (existente && existente.length > 0) continue;
+const chave = (documentoId: string, janela: number, canal: string) => `${documentoId}|${janela}|${canal}`;
 
-    const { error } = await supabase.from("notifications").insert({
+// Linhas já enfileiradas para estes documentos, em uma consulta. Evita o
+// SELECT por (documento, canal) que a versão anterior fazia.
+async function jaEnfileiradas(supabase: SupabaseClient, documentoIds: string[]): Promise<Set<string>> {
+  const existentes = new Set<string>();
+  for (const fatia of emLotes(documentoIds)) {
+    const { data, error } = await supabase
+      .from("notifications")
+      .select("documento_id, days_before_expiry, notification_type")
+      .in("documento_id", fatia)
+      .gte("days_before_expiry", 0);
+    if (error) throw new Error(`Consulta da fila existente: ${error.message}`);
+    for (const linha of data ?? []) {
+      existentes.add(chave(linha.documento_id as string, linha.days_before_expiry as number, linha.notification_type as string));
+    }
+  }
+  return existentes;
+}
+
+// Insere em lote. Uma corrida com outra rodada derruba o lote inteiro (23505),
+// então nesse caso cada linha vai sozinha e a duplicada é ignorada.
+async function inserirFila(supabase: SupabaseClient, linhas: LinhaFila[]): Promise<{ criadas: number; erros: string[] }> {
+  const resultado = { criadas: 0, erros: [] as string[] };
+  for (let inicio = 0; inicio < linhas.length; inicio += LOTE_INSERT) {
+    const lote = linhas.slice(inicio, inicio + LOTE_INSERT);
+    const { error } = await supabase.from("notifications").insert(lote);
+    if (!error) {
+      resultado.criadas += lote.length;
+      continue;
+    }
+    if (error.code !== "23505") {
+      resultado.erros.push(`Lote de ${lote.length} linha(s): ${error.message}`);
+      continue;
+    }
+    for (const linha of lote) {
+      const { error: erroLinha } = await supabase.from("notifications").insert(linha);
+      if (!erroLinha) resultado.criadas++;
+      else if (erroLinha.code !== "23505") resultado.erros.push(`${linha.documento_id}/${linha.notification_type}: ${erroLinha.message}`);
+    }
+  }
+  return resultado;
+}
+
+function montarLinhas(doc: DocumentoFila, janela: number, canais: Canal[], existentes: Set<string>, agora: string): LinhaFila[] {
+  const { titulo } = textoAlerta(janela, rotuloDocumento(doc));
+  return canais
+    .filter((canal) => !existentes.has(chave(doc.id, janela, canal)))
+    .map((canal) => ({
       usuario_id: doc.usuario_id,
       documento_id: doc.id,
       notification_type: canal,
-      status: "PENDING",
-      days_before_expiry: dias,
-      scheduled_date: new Date().toISOString(),
+      status: "PENDING" as const,
+      days_before_expiry: janela,
+      scheduled_date: agora,
       content: titulo,
-    });
-    if (error && error.code !== "23505") resultado.erros.push(`${doc.id}/${canal}: ${error.message}`);
-    else if (!error) resultado.criadas++;
-  }
-  return resultado;
+    }));
 }
 
 Deno.serve(async (req) => {
@@ -94,12 +151,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const agora = new Date().toISOString();
+    const hoje = dataLocalBr(agora);
+    const limite = somarDiasISO(hoje, JANELA_MAIS_LARGA);
 
     const results = {
       checked: 0,
@@ -108,77 +167,85 @@ Deno.serve(async (req) => {
       errors: [] as string[],
     };
     const canaisCache = new Map<string, Canal[]>();
+    const pendentes: DocumentoFila[] = [];
+    const janelaPorDocumento = new Map<string, number>();
 
     // 1. Documentos que venceram desde a última rodada: status + aviso (janela 0).
     const { data: expiredDocs, error: expiredError } = await supabase
       .from("documentos")
       .update({ status: "EXPIRED" })
-      .lt("data_vencimento", today.toISOString().split("T")[0])
+      .lt("data_vencimento", hoje)
       .neq("status", "EXPIRED")
       .eq("resolvido", false)
-      .select("id, usuario_id, tipo, apelido");
+      .select("id, usuario_id, tipo, apelido, data_vencimento, criado_em");
 
     if (expiredError) {
       results.errors.push(`Expired update error: ${expiredError.message}`);
-    } else if (expiredDocs) {
-      results.statuses_updated += expiredDocs.length;
-      for (const doc of expiredDocs) {
-        const canais = await resolverCanais(supabase, canaisCache, doc.usuario_id);
-        const { criadas, erros } = await enfileirar(supabase, doc, 0, canais);
-        results.notifications_created += criadas;
-        results.errors.push(...erros);
+    } else {
+      for (const doc of (expiredDocs ?? []) as DocumentoFila[]) {
+        results.statuses_updated++;
+        pendentes.push(doc);
+        janelaPorDocumento.set(doc.id, 0);
       }
     }
 
-    // 2. Documentos que vencem em cada janela.
-    for (const days of ALERT_DAYS) {
-      const targetDate = new Date(today);
-      targetDate.setDate(targetDate.getDate() + days);
-      const targetDateStr = targetDate.toISOString().split("T")[0];
-
-      const { data: docs, error: docsError } = await supabase
+    // 2. Documentos que vencem de hoje até a janela mais larga. Uma consulta
+    //    paginada para toda a faixa, não uma por janela.
+    for (let pagina = 0; ; pagina++) {
+      const { data, error } = await supabase
         .from("documentos")
-        .select("id, usuario_id, tipo, apelido")
-        .eq("data_vencimento", targetDateStr)
-        .eq("resolvido", false);
+        .select("id, usuario_id, tipo, apelido, data_vencimento, criado_em")
+        .eq("resolvido", false)
+        .gte("data_vencimento", hoje)
+        .lte("data_vencimento", limite)
+        .order("data_vencimento", { ascending: true })
+        .range(pagina * PAGINA, pagina * PAGINA + PAGINA - 1);
 
-      if (docsError) {
-        results.errors.push(`Query error (${days}d): ${docsError.message}`);
-        continue;
+      if (error) {
+        results.errors.push(`Query error: ${error.message}`);
+        break;
       }
 
-      if (!docs || docs.length === 0) continue;
-      results.checked += docs.length;
-
-      if (days <= 30) {
-        const docIds = docs.map((d) => d.id);
-        const { error: updateErr } = await supabase
-          .from("documentos")
-          .update({ status: "EXPIRING_SOON" })
-          .in("id", docIds)
-          .neq("status", "EXPIRING_SOON");
-
-        if (updateErr) {
-          results.errors.push(`Status update error: ${updateErr.message}`);
-        } else {
-          results.statuses_updated += docIds.length;
-        }
+      const lote = (data ?? []) as DocumentoFila[];
+      results.checked += lote.length;
+      for (const doc of lote) {
+        const janela = janelaDoDia(doc, hoje);
+        if (janela === null) continue;
+        pendentes.push(doc);
+        janelaPorDocumento.set(doc.id, janela);
       }
+      if (lote.length < PAGINA) break;
+    }
 
-      for (const doc of docs) {
-        // Configuração por documento (tabela legada; nada no app escreve nela).
-        const { data: alertConfig } = await supabase
-          .from("alertas_configuracao")
-          .select("ativo, dias_antes")
-          .eq("documento_id", doc.id)
-          .eq("usuario_id", doc.usuario_id);
-        if (alertConfig && alertConfig.length > 0 && !alertConfig.some((cfg) => cfg.ativo && cfg.dias_antes === days)) continue;
+    // 3. "Vence em até 30 dias" é o que a interface chama de atenção/crítico.
+    const proximos = pendentes.filter((doc) => {
+      const janela = janelaPorDocumento.get(doc.id);
+      return janela !== undefined && janela > 0 && janela <= 30;
+    }).map((doc) => doc.id);
+    for (const fatia of emLotes(proximos)) {
+      const { error } = await supabase
+        .from("documentos")
+        .update({ status: "EXPIRING_SOON" })
+        .in("id", fatia)
+        .neq("status", "EXPIRING_SOON");
+      if (error) results.errors.push(`Status update error: ${error.message}`);
+      else results.statuses_updated += fatia.length;
+    }
 
+    // 4. Enfileira o que falta: uma consulta para saber o que já existe, um
+    //    INSERT em lote para o resto.
+    if (pendentes.length > 0) {
+      const existentes = await jaEnfileiradas(supabase, pendentes.map((doc) => doc.id));
+      const linhas: LinhaFila[] = [];
+      for (const doc of pendentes) {
+        const janela = janelaPorDocumento.get(doc.id);
+        if (janela === undefined) continue;
         const canais = await resolverCanais(supabase, canaisCache, doc.usuario_id);
-        const { criadas, erros } = await enfileirar(supabase, doc, days, canais);
-        results.notifications_created += criadas;
-        results.errors.push(...erros);
+        linhas.push(...montarLinhas(doc, janela, canais, existentes, agora));
       }
+      const { criadas, erros } = await inserirFila(supabase, linhas);
+      results.notifications_created += criadas;
+      results.errors.push(...erros);
     }
 
     console.log("Check expiring documents results:", JSON.stringify(results));

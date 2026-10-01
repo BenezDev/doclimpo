@@ -2,7 +2,7 @@
    estilo. Só as seções desta página; tokens, botões, pílulas, placa,
    cartões de plano, menu e rodapé vêm de index.css. */
 
-.landing-page { display: flex; min-height: 100vh; flex-direction: column; }
+.landing-page { display: flex; min-height: 100vh; min-height: 100dvh; flex-direction: column; }
 .landing-page main { flex: 1; }
 .landing-page [id] { scroll-margin-top: 88px; }
 
