@@ -23,10 +23,15 @@ dist-ssr
 *.sln
 *.sw?
 
-# Env
+# Env: só o .env.example vai para o git
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+
+# Vercel e Supabase CLI
+.vercel
+supabase/.temp
+supabase/.branches
 
 # Backup local
 docalert-backup-*.tar.gz
