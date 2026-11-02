@@ -1,0 +1,32 @@
+# O plano Free do Supabase pausa o projeto após 7 dias com pouca atividade.
+# Uma consulta pela API REST a cada 3 dias mantém o banco acordado. A chave é
+# a publishable (a mesma que vai no front); o RLS devolve lista vazia.
+name: Keep-alive Supabase
+
+on:
+  schedule:
+    - cron: "0 12 */3 * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write # reativar o próprio workflow (abaixo)
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Consulta no banco
+        env:
+          SUPABASE_URL: https://zgpixmunvgnwgzzfwpjg.supabase.co
+          SUPABASE_PUBLISHABLE_KEY: sb_publishable_yL75KWBWZKEaaHZFEWM1Ow_egJfcgFB
+        run: |
+          curl -fsS --retry 3 --retry-delay 10 \
+            "$SUPABASE_URL/rest/v1/documentos?select=id&limit=1" \
+            -H "apikey: $SUPABASE_PUBLISHABLE_KEY"
+
+      # Repositório público: o GitHub desliga agendamentos após 60 dias sem
+      # atividade no repo. Reativar pela API zera essa contagem.
+      - name: Manter o agendamento ativo
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/keep-alive.yml/enable"
