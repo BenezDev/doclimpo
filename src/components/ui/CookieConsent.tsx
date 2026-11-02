@@ -25,8 +25,7 @@ export function CookieConsent() {
         <strong>Cookies e armazenamento</strong>
         <p>
           Usamos armazenamento local essencial — para manter você conectado e lembrar a
-          preferência de tema — e métricas de acesso agregadas, sem cookie e sem identificar você
-          (Vercel Web Analytics). Não há cookies de publicidade. Saiba mais na{' '}
+          preferência de tema. Não há cookies de publicidade nem de métricas. Saiba mais na{' '}
           <Link to="/privacidade">política de privacidade</Link>.
         </p>
       </div>

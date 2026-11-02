@@ -5,7 +5,9 @@ O usuário cadastra documentos com data de vencimento e recebe avisos antes de v
 
 ## ⚠️ Leia isto antes de mexer
 
-**Produção atual:** repo `BenezDev/doclimpo` (branch `main`) → Vercel `www.doclimpo.com` (alias `doclimpo.vercel.app`)
+**Produção atual:** repo `BenezDev/doclimpo` (branch `main`) → Vercel `www.doclimpo.com` (alias `doclimpo.vercel.app`).
+**Migração em curso para a Cloudflare** (Workers static assets, `wrangler.jsonc`): passo a passo em
+[docs/CLOUDFLARE.md](docs/CLOUDFLARE.md). Cabeçalhos/CSP em `public/_headers`, redirects em `public/_redirects`
 → Supabase `zgpixmunvgnwgzzfwpjg`. Deploy é por git: push na `main` publica.
 
 `https://docalert-three.vercel.app` é o app antigo (DocAlert), deployado por CLI sem
@@ -105,8 +107,8 @@ Pontos a saber:
   automática (API paga, renavam, consentimento) é fase 2 — não está construída.
 - Tipo `multa` (todos os planos): `SugestaoData` calcula o prazo mínimo do CTB (defesa/indicação
   +30 dias da notificação; recurso +30; desconto vem impresso), o detalhe troca `OndeRenovar` por
-  `OndeConsultarMultas` e `RenovarDialog` vira "próximo prazo" (+30 dias). Vercel rotas em
-  `vercel.json` são manuais: página pública nova exige entrada lá.
+  `OndeConsultarMultas` e `RenovarDialog` vira "próximo prazo" (+30 dias). Página pública nova
+  é uma pasta com `index.html` no `dist/`; a Cloudflare serve sem regra extra.
 
 ## Alertas
 
@@ -210,7 +212,7 @@ SEO: páginas indexáveis ganham HTML pré-renderizado (`scripts/prerender.mjs`)
 (`structuredData` em `page-meta.ts`). Por isso Landing, DocumentosHub, DocumentoPublico, Sobre
 e Seguranca são importadas direto em `App.tsx`, não com `lazy`: com `lazy`, o React trocaria o
 HTML pronto pela tela de carregamento. Slug público ≠ tipo do banco (`plano-de-saude` →
-`plano_saude`); slug antigo tem 301 em `vercel.json`. Depois de publicar páginas públicas novas, rode
+`plano_saude`); slug antigo tem 301 em `public/_redirects`. Depois de publicar páginas públicas novas, rode
 `node scripts/indexnow.mjs` (Bing/Yandex); o Google depende do Search Console.
 
 Desempenho: o cliente do Supabase é carregado por `import()` dentro do `AuthProvider`, fora do

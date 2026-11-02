@@ -44,5 +44,5 @@ npm run preview -- --host 127.0.0.1 --port 4173 --strictPort
 ```
 
 Os testes de renderização usam React no servidor e bloqueiam o cliente Supabase. A checagem do
-build valida arquivos, HTML pré-renderizado, JSON-LD e regras locais do `vercel.json`, não o
-comportamento remoto da Vercel.
+build valida arquivos, HTML pré-renderizado, JSON-LD e regras locais de `public/_redirects`, não o
+comportamento remoto da Cloudflare (`npm run preview:cloudflare` roda o mesmo roteamento localmente).

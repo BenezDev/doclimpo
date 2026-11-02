@@ -54,7 +54,7 @@ As 8 regras de ouro estão em `docs/SEGURANCA.md`; leia-o antes de revisar.
    - **Anti-SSRF / terceiros**: chamada externa só a host fixo em allowlist,
      URL nunca montada a partir de input do usuário, mínimo de dado enviado?
    - **CSP**: host externo novo foi adicionado explicitamente à CSP em
-     `vercel.json` (nunca afrouxado para `*`)? CORS restrito à origem do app?
+     `public/_headers` (nunca afrouxado para `*`)? CORS restrito à origem do app?
 
 3. **Específicos recorrentes**:
    - IDOR em Edge Functions (o maior risco: service role ignora RLS).

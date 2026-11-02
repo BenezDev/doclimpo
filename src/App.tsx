@@ -2,7 +2,6 @@ import { lazy, Suspense, type ReactNode } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
 import { PageMetadata } from './components/PageMetadata'
-import { Analytics } from '@vercel/analytics/react'
 import { CookieConsent } from './components/ui/CookieConsent'
 import { withIntent } from './lib/public-content'
 import './styles/public-pages.css'
@@ -52,8 +51,6 @@ function App() {
     <BrowserRouter>
       <PageMetadata />
       <CookieConsent />
-      {/* Vercel Web Analytics: métricas agregadas de página, sem cookie nem identificador persistente (same-origin /_vercel/insights). */}
-      <Analytics />
       <Suspense fallback={<AppLoading />}>
         <Routes>
           <Route path="/" element={<Landing />} />

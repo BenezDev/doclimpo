@@ -1,0 +1,14 @@
+// Cloudflare Workers com static assets: o site é só o `dist/` do build.
+// Páginas públicas são pastas com index.html (servidas sem barra final);
+// cabeçalhos em public/_headers, redirects em public/_redirects; o que não
+// existir recebe dist/404.html com status 404. Não há código de servidor.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "doclimpo",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./dist",
+    "html_handling": "drop-trailing-slash",
+    "not_found_handling": "404-page"
+  }
+}

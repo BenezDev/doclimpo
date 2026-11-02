@@ -1,0 +1,7 @@
+# Slugs antigos com underline: 301 para os novos, com hífen.
+/documentos/plano_saude /documentos/plano-de-saude 301
+/documentos/plano_saude/ /documentos/plano-de-saude 301
+/documentos/carteira_trabalho /documentos/carteira-de-trabalho 301
+/documentos/carteira_trabalho/ /documentos/carteira-de-trabalho 301
+# Detalhe do documento: uma casca só para qualquer id.
+/documento/* /documento 200

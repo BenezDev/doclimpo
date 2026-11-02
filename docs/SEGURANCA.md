@@ -49,7 +49,7 @@ conveniência; quem realmente decide quem vê o quê é o banco.
    **nunca** monte a URL a partir de input do usuário. Envie o mínimo necessário
    (ex.: só o CEP ao ViaCEP; o endereço nunca vai a serviço de mapa — a distância é local).
 
-8. **CSP apertada.** A CSP (em `vercel.json`) lista os hosts permitidos. Ao integrar um host
+8. **CSP apertada.** A CSP (em `public/_headers`) lista os hosts permitidos. Ao integrar um host
    externo novo, **adicione-o explicitamente** à diretiva certa (`connect-src`/`script-src`/…),
    nunca afrouxe para `*`. `frame-ancestors 'none'` + `X-Frame-Options: DENY` barram clickjacking.
 
