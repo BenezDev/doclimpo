@@ -56,11 +56,12 @@ Nada abaixo foi feito pelo repositório. Ordem pensada para não derrubar o site
 
 ### 4. Cloudflare: ligar o domínio ao Worker
 
-1. Worker `doclimpo` → **Settings → Domains & Routes → Add → Custom domain** → `www.doclimpo.com`.
-2. Para o domínio sem `www`: **DNS → Add record** `A`, nome `@`, IPv4 `192.0.2.1`, **Proxied** (nuvem laranja).
-   Depois **Rules → Redirect Rules → Create → template "Redirect from root to WWW"**
-   (`https://doclimpo.com/*` → `https://www.doclimpo.com/${1}`, 301, preservando a query).
-3. **SSL/TLS → Overview**: modo **Full (strict)**. **SSL/TLS → Edge Certificates**: "Always Use HTTPS" ligado.
+Os domínios estão nos `routes` (`custom_domain`) dos wranglers; o deploy cria o DNS e o certificado.
+
+1. `npx wrangler deploy` liga `www.doclimpo.com` ao Worker `doclimpo`.
+2. `npx wrangler deploy -c wrangler.apex.jsonc` liga `doclimpo.com` ao Worker `doclimpo-apex`,
+   que só redireciona (301) para `https://www.doclimpo.com`, com caminho e query.
+3. **SSL/TLS → Edge Certificates**: "Always Use HTTPS" ligado.
 
 ### 5. Conferir
 
