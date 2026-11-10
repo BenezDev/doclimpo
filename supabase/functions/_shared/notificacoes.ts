@@ -88,6 +88,15 @@ export function janelaDoDia(doc: { data_vencimento: string; criado_em: string },
   return null;
 }
 
+// Identidade de um aviso: o mesmo documento, na mesma data de vencimento, na
+// mesma janela e no mesmo canal só sai uma vez. A data faz parte da chave de
+// propósito: se o usuário corrige o vencimento, os avisos recomeçam para a
+// data nova em vez de ficarem bloqueados pelos que já saíram para a antiga.
+// Espelha o índice único notifications_doc_venc_janela_canal_unico.
+export function chaveAviso(documentoId: string, vencimento: string, janela: number, canal: string): string {
+  return `${documentoId}|${vencimento}|${janela}|${canal}`;
+}
+
 // Remove controle, quebras e espaços em série. Texto de usuário (apelido)
 // entra em assunto de e-mail, push e parâmetro de template do WhatsApp — a
 // Meta recusa quebras de linha, tabulações e 4+ espaços seguidos.

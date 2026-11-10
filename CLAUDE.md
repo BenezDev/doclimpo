@@ -135,7 +135,10 @@ que o documento já alcançou e que ele ainda não tinha ultrapassado quando foi
 segundo teste é o que evita um documento cadastrado a três dias do vencimento receber 90, 30 e 7
 de uma vez. Consequência de propósito: um dia de cron perdido **atrasa** o aviso em vez de
 perdê-lo, porque a mesma janela segue vigente amanhã, e o índice único
-`notifications_doc_janela_canal_unico` impede o aviso repetido. Não troque isso por um `.eq()` na
+`notifications_doc_venc_janela_canal_unico` (documento, **data de vencimento**, janela, canal; espelho
+de `chaveAviso()`) impede o aviso repetido. A data está na chave de propósito: corrigir o vencimento
+reabre os avisos, e o gatilho `ao_mudar_vencimento` encerra os PENDING da data antiga. `notifications`
+só é escrita pelo servidor (o usuário só lê). Não troque isso por um `.eq()` na
 data: era assim antes e um dia de cron fora derrubava o aviso para sempre.
 
 O texto do aviso usa os **dias reais** até o vencimento no momento do envio (`diasEntre`), não a
