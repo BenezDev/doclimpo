@@ -85,4 +85,3 @@ conveniência; quem realmente decide quem vê o quê é o banco.
 - Confirmar confirmação de e-mail no cadastro e os rate-limits de auth.
 - CI com `npm audit` + varredura de segredos (ex.: gitleaks) + testes a cada PR.
 - Suíte automatizada de RLS/authz (provar que o usuário A não lê/escreve dados de B).
-- Aplicar as migrations no projeto **vivo** de produção (`hkdlthvyhvnlfojwqnxc`).

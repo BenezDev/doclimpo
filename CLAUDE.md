@@ -5,10 +5,10 @@ O usuário cadastra documentos com data de vencimento e recebe avisos antes de v
 
 ## ⚠️ Leia isto antes de mexer
 
-**Produção atual:** repo `BenezDev/doclimpo` (branch `main`) → Vercel `www.doclimpo.com` (alias `doclimpo.vercel.app`).
-**Migração em curso para a Cloudflare** (Workers static assets, `wrangler.jsonc`): passo a passo em
-[docs/CLOUDFLARE.md](docs/CLOUDFLARE.md). Cabeçalhos/CSP em `public/_headers`, redirects em `public/_redirects`
-→ Supabase `zgpixmunvgnwgzzfwpjg`. Deploy é por git: push na `main` publica.
+**Produção atual:** repo `BenezDev/doclimpo` (branch `main`) → Cloudflare Workers static assets
+(`wrangler.jsonc`) em `www.doclimpo.com` → Supabase `zgpixmunvgnwgzzfwpjg`. Cabeçalhos/CSP em
+`public/_headers`, redirects em `public/_redirects`; passo a passo em [docs/CLOUDFLARE.md](docs/CLOUDFLARE.md).
+A Vercel saiu em 11/2026 (`doclimpo.vercel.app` responde 402). Deploy é por git: push na `main` publica.
 
 `https://docalert-three.vercel.app` é o app antigo (DocAlert), deployado por CLI sem
 vínculo git e apontando para um Supabase de outra conta. Está sendo substituído; não
@@ -85,15 +85,14 @@ de propósito, senão o fast refresh do Vite quebra.
 
 ## Banco
 
-10 tabelas, todas com RLS habilitado e políticas por `(select auth.uid())` (sempre dentro do
+16 tabelas (4 legadas sem uso: `alertas_configuracao`, `renovacoes`, `referrals`, `referral_codes`), todas com RLS habilitado e políticas por `(select auth.uid())` (sempre dentro do
 `select`: o Postgres calcula uma vez por consulta). Funções auxiliares SECURITY DEFINER usadas só
 em políticas ficam no schema `private` (fora da API), como `private.familia_titular_de`. **O RLS é a
 parte mais confiável do projeto** — verificado ativo em produção.
 
 Pontos a saber:
 
-- `profiles` casa com o auth por **`user_id`**, não por `id`. Em produção a coluna
-  `id` nem existe.
+- `profiles` casa com o auth por **`user_id`**, não por `id` (a coluna `id` existe, mas é só a chave da linha).
 - `documentos` tem duas noções concorrentes de estado: `resolvido` (boolean, usado
   pelo frontend) e `status` (texto, escrito só pelo cron e lido por ninguém).
 - Um trigger `enforce_free_plan_document_limit` levanta `PLAN_LIMIT` ao inserir o
