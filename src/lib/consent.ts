@@ -2,8 +2,7 @@
 //
 // O DocLimpo usa armazenamento local essencial: a sessão de autenticação
 // (integrations/supabase/client) e a preferência de tema (hooks/useTheme).
-// As métricas de acesso (Vercel Web Analytics) são agregadas, sem cookie e
-// sem identificador persistente. Não há publicidade — por isso o aviso é
+// Não há métricas de acesso nem publicidade — por isso o aviso é
 // informativo e registra o aceite, em vez de oferecer categorias opcionais
 // que não existem.
 //

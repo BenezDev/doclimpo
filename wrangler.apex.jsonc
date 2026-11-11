@@ -1,0 +1,11 @@
+// Worker que só redireciona o domínio sem www para o www (cloudflare/apex-redirect.js).
+// Publicar: npx wrangler deploy -c wrangler.apex.jsonc
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "doclimpo-apex",
+  "main": "./cloudflare/apex-redirect.js",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [{ "pattern": "doclimpo.com", "custom_domain": true }]
+}

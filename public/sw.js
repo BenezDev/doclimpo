@@ -1,5 +1,5 @@
 // Service worker do DocLimpo: só notificações push. Sem cache, sem
-// interceptar fetch — o app continua servido direto pela Vercel.
+// interceptar fetch — o app continua servido direto pela Cloudflare.
 
 self.addEventListener('install', () => self.skipWaiting())
 self.addEventListener('activate', event => event.waitUntil(self.clients.claim()))

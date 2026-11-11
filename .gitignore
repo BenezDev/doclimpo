@@ -35,3 +35,6 @@ supabase/.branches
 
 # Backup local
 docalert-backup-*.tar.gz
+
+# Estado local do wrangler dev
+.wrangler/

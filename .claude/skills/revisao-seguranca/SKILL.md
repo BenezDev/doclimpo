@@ -37,7 +37,7 @@ segurança. Rode isto ao terminar de escrever código.
    - Segredo só no servidor; no front só `VITE_`; nada de segredo no git.
    - Rota que custa/pública → rate-limit; segredo comparado com `compararSegredo`.
    - Terceiro → host fixo, sem montar URL com input do usuário (SSRF), mínimo de dado.
-   - Host externo novo → adicionado à CSP em `vercel.json`; CORS restrito.
+   - Host externo novo → adicionado à CSP em `public/_headers`; CORS restrito.
 
 5. **Reporte** os achados por severidade (mais grave primeiro), uma linha cada:
    `path:line: <severidade>: <problema>. <correção>.` Sem elogio, sem item fora

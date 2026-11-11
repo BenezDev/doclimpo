@@ -1,0 +1,12 @@
+# Cabeçalhos dos arquivos estáticos na Cloudflare (Workers static assets).
+# Fonte única da CSP: host externo novo entra aqui, nunca com `*`.
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self' https://*.supabase.co https://viacep.com.br; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+  Permissions-Policy: geolocation=(), camera=(), microphone=(), payment=()
+
+/sw.js
+  Cache-Control: no-cache

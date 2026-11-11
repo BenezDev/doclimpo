@@ -121,7 +121,7 @@ test('política informa escopo real, bases legais, controles da conta e fontes o
   assert.doesNotMatch(html, /Minuta em revisão/)
   assert.match(html, /Responsável pelo tratamento:<\/strong> \S/)
   assert.match(html, /mailto:/)
-  for (const text of ['Supabase', 'Resend', 'fontes da interface são servidas pelo próprio DocLimpo', 'ViaCEP', 'Vercel', 'Serviços de push do navegador', 'Retenção e exclusão', 'Responsável e contato', 'Bases legais', 'Encarregado de dados']) assert.ok(html.includes(text), text)
+  for (const text of ['Supabase', 'Resend', 'fontes da interface são servidas pelo próprio DocLimpo', 'ViaCEP', 'Cloudflare', 'Serviços de push do navegador', 'Retenção e exclusão', 'Responsável e contato', 'Bases legais', 'Encarregado de dados']) assert.ok(html.includes(text), text)
   assert.doesNotMatch(html, /não inclui ferramentas de publicidade ou analytics/)
   assert.doesNotMatch(html, /Google Fonts/)
   assert.match(html, /endereço residencial/)
