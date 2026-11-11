@@ -3,7 +3,10 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { COR_EMAIL, REMETENTE_PADRAO, layoutEmail } from "../_shared/email.ts";
 import { carregarServidorPush, enviarPush } from "../_shared/push.ts";
 
-// Envio de teste pelo próprio usuário (JWT do cliente; RLS vale em tudo).
+// Envio de teste pelo próprio usuário (JWT do cliente; RLS vale nas leituras).
+// O registro do teste, que também é o contador do limite, é gravado e lido com
+// a service role: o usuário não escreve em notifications, senão apagaria a
+// linha e zeraria o limite.
 // Canais: EMAIL (todo plano) e PUSH (planos pagos, para os dispositivos que o
 // usuário ativou em Minha conta). Rate-limit: 1 teste por minuto.
 Deno.serve(async (req) => {
@@ -25,6 +28,8 @@ Deno.serve(async (req) => {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) return responder({ error: "Usuário não encontrado" }, 401);
 
+    const admin = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
+
     const body = await req.json().catch(() => ({}));
     const canal = body.notification_type === "PUSH" ? "PUSH" : body.notification_type === "EMAIL" || !body.notification_type ? "EMAIL" : null;
     if (!canal) return responder({ error: `Envio por ${String(body.notification_type)} não disponível.` }, 400);
@@ -32,13 +37,15 @@ Deno.serve(async (req) => {
     // Rate-limit: no máximo 1 teste por minuto por usuário — sem isso um laço
     // na função vira abuso de envio (custo/reputação no Resend, quota de push).
     const umMinutoAtras = new Date(Date.now() - 60000).toISOString();
-    const { data: recentes } = await supabase
+    const { data: recentes, error: erroLimite } = await admin
       .from("notifications")
       .select("id")
       .eq("usuario_id", user.id)
       .gte("sent_date", umMinutoAtras)
       .ilike("content", "Notificação de teste%")
       .limit(1);
+    // Sem conseguir ler o contador, não envia: falha fechada.
+    if (erroLimite) throw new Error("Não foi possível conferir o limite de envio.");
     if (recentes && recentes.length > 0) return responder({ error: "Aguarde um minuto antes de enviar outro teste." }, 429);
 
     let destino: string;
@@ -97,9 +104,9 @@ Deno.serve(async (req) => {
       destino = user.email;
     }
 
-    // Registro do teste: sem documento_id — um id vindo do cliente não passa
-    // por checagem de dono aqui, e o teste não é sobre um documento.
-    const { data, error } = await supabase.from("notifications").insert({
+    // Registro do teste: usuario_id do token, sem documento_id — o teste não
+    // é sobre um documento.
+    const { data, error } = await admin.from("notifications").insert({
       usuario_id: user.id,
       documento_id: null,
       notification_type: canal,

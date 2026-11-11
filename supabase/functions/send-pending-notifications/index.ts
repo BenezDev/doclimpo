@@ -50,6 +50,7 @@ interface Perfil {
 
 interface Documento {
   id: string;
+  usuario_id: string;
   tipo: string;
   apelido: string | null;
   data_vencimento: string;
@@ -276,7 +277,7 @@ Deno.serve(async (req) => {
     for (const fatia of emLotes(documentoIds)) {
       const { data, error } = await supabase
         .from("documentos")
-        .select("id, tipo, apelido, data_vencimento, resolvido")
+        .select("id, usuario_id, tipo, apelido, data_vencimento, resolvido")
         .in("id", fatia);
       if (error) throw new Error(`Erro ao ler os documentos do lote: ${error.message}`);
       for (const linha of data ?? []) documentos.set(linha.id as string, linha as unknown as Documento);
@@ -298,6 +299,14 @@ Deno.serve(async (req) => {
       // Documento renovado ou removido entre o enfileiramento e o envio.
       if (!documento || documento.resolvido) {
         await concluir(notificacao.id, { estado: "SKIPPED", detalhe: "documento_resolvido" });
+        resultado.pulados++;
+        continue;
+      }
+
+      // A linha da fila e o documento têm de ser da mesma conta. Esta função
+      // lê com a service role, então é aqui que o dono é conferido.
+      if (documento.usuario_id !== notificacao.usuario_id) {
+        await concluir(notificacao.id, { estado: "SKIPPED", detalhe: "dono_divergente" });
         resultado.pulados++;
         continue;
       }
