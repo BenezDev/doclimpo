@@ -2,6 +2,7 @@ import { motion, useReducedMotion } from 'framer-motion'
 import {
   AlertTriangle,
   ArrowLeft,
+  CircleAlert,
   BellRing,
   CalendarPlus,
   CheckCircle2,
@@ -27,7 +28,7 @@ import { OndeRenovar } from '../components/ui/OndeRenovar'
 import { RenovarDialog } from '../components/ui/RenovarDialog'
 import { useAuth } from '../hooks/useAuth'
 import { useTheme } from '../hooks/useTheme'
-import { diasRestantes, formatarDataLonga, statusPorDias } from '../lib/datas'
+import { dataValida, diasRestantes, formatarDataLonga, statusPorDias } from '../lib/datas'
 import { JANELAS_ALERTA, ROTULO_CANAL, canaisDoPlano, ehPago } from '../lib/planos'
 import { rotuloDoTipo } from '../lib/tipos-documento'
 import { usePlano } from '../hooks/usePlano'
@@ -128,6 +129,8 @@ export default function DocumentoDetalhe() {
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [newDate, setNewDate] = useState('')
   const [newNickname, setNewNickname] = useState('')
+  const [salvando, setSalvando] = useState(false)
+  const [erroAcao, setErroAcao] = useState<string | null>(null)
   const [perfilEndereco, setPerfilEndereco] = useState<PerfilEndereco | null>(null)
   const [mostrarEndereco, setMostrarEndereco] = useState(false)
 
@@ -169,23 +172,33 @@ export default function DocumentoDetalhe() {
     if (!document) return
     setNewDate(document.data_vencimento)
     setNewNickname(document.apelido || '')
+    setErroAcao(null)
     setEditing(true)
   }
 
   const saveEdit = async () => {
     if (!id || !document) return
-    await supabase.from('documentos').update({
-      data_vencimento: newDate || document.data_vencimento,
-      apelido: newNickname || null,
-    }).eq('id', id)
-    setEditing(false)
-    const { data } = await supabase.from('documentos').select('*').eq('id', id).single()
+    if (!dataValida(newDate)) { setErroAcao('Informe uma data de vencimento válida.'); return }
+    setSalvando(true)
+    setErroAcao(null)
+    // Devolve a linha gravada: sem ela não há como saber se a alteração entrou.
+    const { data, error } = await supabase.from('documentos').update({
+      data_vencimento: newDate,
+      apelido: newNickname.trim() || null,
+    }).eq('id', id).select('*').single()
+    setSalvando(false)
+    if (error || !data) { setErroAcao('Não foi possível salvar agora. Nada foi alterado. Tente de novo em instantes.'); return }
     setDocument(data)
+    setEditing(false)
   }
 
   const deleteDocument = async () => {
     if (!id) return
-    await supabase.from('documentos').delete().eq('id', id)
+    setSalvando(true)
+    setErroAcao(null)
+    const { error } = await supabase.from('documentos').delete().eq('id', id)
+    setSalvando(false)
+    if (error) { setErroAcao('Não foi possível excluir agora. O documento continua no painel. Tente de novo em instantes.'); return }
     navigate('/dashboard')
   }
 
@@ -282,9 +295,16 @@ export default function DocumentoDetalhe() {
                 <label htmlFor="edit-nickname">Apelido <span className="bz-field__optional">(opcional)</span></label>
                 <input className="bz-input" id="edit-nickname" type="text" maxLength={80} value={newNickname} onChange={event => setNewNickname(event.target.value)} />
               </div>
+              <p className="bz-field__help">Se a data mudar, os avisos recomeçam para o novo prazo.</p>
+              {erroAcao && (
+                <div className="bz-feedback bz-feedback--danger" role="alert">
+                  <CircleAlert size={17} strokeWidth={1.75} aria-hidden="true" />
+                  <p>{erroAcao}</p>
+                </div>
+              )}
               <div className="bz-modal__actions">
-                <Button variant="secondary" onClick={() => setEditing(false)}>Cancelar</Button>
-                <Button variant="primary" onClick={saveEdit}>Salvar alterações</Button>
+                <Button variant="secondary" disabled={salvando} onClick={() => setEditing(false)}>Cancelar</Button>
+                <Button variant="primary" disabled={salvando} onClick={saveEdit}>{salvando ? 'Salvando…' : 'Salvar alterações'}</Button>
               </div>
             </div>
           </motion.div>
@@ -306,9 +326,15 @@ export default function DocumentoDetalhe() {
               <span className="detail-delete-dialog__icon"><Trash2 size={22} strokeWidth={1.75} /></span>
               <h2 id="delete-document-title">Excluir {documentName}?</h2>
               <p>O prazo e o histórico vinculado deixam de aparecer no painel. Essa ação não pode ser desfeita.</p>
+              {erroAcao && (
+                <div className="bz-feedback bz-feedback--danger" role="alert">
+                  <CircleAlert size={17} strokeWidth={1.75} aria-hidden="true" />
+                  <p>{erroAcao}</p>
+                </div>
+              )}
               <div className="bz-modal__actions">
-                <Button variant="secondary" onClick={() => setConfirmingDelete(false)}>Cancelar</Button>
-                <Button variant="danger" onClick={deleteDocument}>Excluir documento</Button>
+                <Button variant="secondary" disabled={salvando} onClick={() => setConfirmingDelete(false)}>Cancelar</Button>
+                <Button variant="danger" disabled={salvando} onClick={deleteDocument}>{salvando ? 'Excluindo…' : 'Excluir documento'}</Button>
               </div>
             </div>
           </motion.div>
@@ -339,7 +365,7 @@ export default function DocumentoDetalhe() {
           </div>
           <div className="detail-heading__actions">
             <Button variant="secondary" onClick={openEdit} icon={<Pencil size={16} strokeWidth={1.75} />}>Editar</Button>
-            <Button variant="ghost" onClick={() => setConfirmingDelete(true)} icon={<Trash2 size={16} strokeWidth={1.75} />}>Excluir</Button>
+            <Button variant="ghost" onClick={() => { setErroAcao(null); setConfirmingDelete(true) }} icon={<Trash2 size={16} strokeWidth={1.75} />}>Excluir</Button>
           </div>
         </section>
 

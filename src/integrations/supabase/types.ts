@@ -182,6 +182,7 @@ export type Database = {
           sent_date: string | null
           status: string
           usuario_id: string
+          vencimento: string | null
         }
         Insert: {
           atualizado_em?: string
@@ -196,6 +197,7 @@ export type Database = {
           sent_date?: string | null
           status?: string
           usuario_id: string
+          vencimento?: string | null
         }
         Update: {
           atualizado_em?: string
@@ -210,6 +212,7 @@ export type Database = {
           sent_date?: string | null
           status?: string
           usuario_id?: string
+          vencimento?: string | null
         }
         Relationships: [
           {

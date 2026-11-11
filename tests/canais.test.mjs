@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { CANAIS_PAGOS, JANELAS_ALERTA, PLANOS, WHATSAPP_DISPONIVEL, canaisDoPlano } from '../src/lib/planos.ts'
-import { canaisParaUsuario, classificarErroMeta, dataLocalBr, diasEntre, emLotes, higienizarTexto, IDS_POR_CONSULTA, JANELAS_ALERTA as JANELAS_SERVIDOR, janelaDoDia, normalizarE164, PUSH_ENDPOINT_RE, rotuloDocumento, somarDiasISO, textoAlerta } from '../supabase/functions/_shared/notificacoes.ts'
+import { canaisParaUsuario, chaveAviso, classificarErroMeta, dataLocalBr, diasEntre, emLotes, higienizarTexto, IDS_POR_CONSULTA, JANELAS_ALERTA as JANELAS_SERVIDOR, janelaDoDia, normalizarE164, PUSH_ENDPOINT_RE, rotuloDocumento, somarDiasISO, textoAlerta } from '../supabase/functions/_shared/notificacoes.ts'
 
 test('grátis só e-mail; pagos ganham push e, com o interruptor, WhatsApp', () => {
   assert.deepEqual(canaisDoPlano('FREE'), ['EMAIL'])
@@ -132,4 +132,16 @@ test('emLotes mantém o filtro .in() abaixo do limite da linha de requisição',
   const lotes = emLotes(ids)
   assert.deepEqual(lotes.flat(), ids)
   for (const lote of lotes) assert.ok(lote.length <= IDS_POR_CONSULTA)
+})
+
+test('chave do aviso inclui a data: corrigir o vencimento reabre a janela, repetir a rodada não', () => {
+  const doc = 'b6f0c9c2-0000-4000-8000-000000000001'
+  const jaEnviado = new Set([chaveAviso(doc, '2026-12-01', 30, 'EMAIL')])
+  // Mesma data, mesma janela, mesmo canal: a rodada de amanhã não repete.
+  assert.ok(jaEnviado.has(chaveAviso(doc, '2026-12-01', 30, 'EMAIL')))
+  // Data corrigida para o ano seguinte: a janela 30 volta a valer.
+  assert.ok(!jaEnviado.has(chaveAviso(doc, '2027-12-01', 30, 'EMAIL')))
+  // Outra janela e outro canal continuam independentes.
+  assert.ok(!jaEnviado.has(chaveAviso(doc, '2026-12-01', 7, 'EMAIL')))
+  assert.ok(!jaEnviado.has(chaveAviso(doc, '2026-12-01', 30, 'PUSH')))
 })

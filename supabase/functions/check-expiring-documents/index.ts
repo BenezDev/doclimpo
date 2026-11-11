@@ -4,6 +4,7 @@ import { compararSegredo } from "../_shared/seguranca.ts";
 import {
   type Canal,
   canaisParaUsuario,
+  chaveAviso,
   dataLocalBr,
   emLotes,
   JANELAS_ALERTA,
@@ -43,6 +44,7 @@ interface LinhaFila {
   notification_type: Canal;
   status: "PENDING";
   days_before_expiry: number;
+  vencimento: string;
   scheduled_date: string;
   content: string;
 }
@@ -76,8 +78,6 @@ async function resolverCanais(supabase: SupabaseClient, cache: Map<string, Canal
   return canais;
 }
 
-const chave = (documentoId: string, janela: number, canal: string) => `${documentoId}|${janela}|${canal}`;
-
 // Linhas já enfileiradas para estes documentos, em uma consulta. Evita o
 // SELECT por (documento, canal) que a versão anterior fazia.
 async function jaEnfileiradas(supabase: SupabaseClient, documentoIds: string[]): Promise<Set<string>> {
@@ -85,12 +85,12 @@ async function jaEnfileiradas(supabase: SupabaseClient, documentoIds: string[]):
   for (const fatia of emLotes(documentoIds)) {
     const { data, error } = await supabase
       .from("notifications")
-      .select("documento_id, days_before_expiry, notification_type")
+      .select("documento_id, vencimento, days_before_expiry, notification_type")
       .in("documento_id", fatia)
       .gte("days_before_expiry", 0);
     if (error) throw new Error(`Consulta da fila existente: ${error.message}`);
     for (const linha of data ?? []) {
-      existentes.add(chave(linha.documento_id as string, linha.days_before_expiry as number, linha.notification_type as string));
+      existentes.add(chaveAviso(linha.documento_id as string, linha.vencimento as string, linha.days_before_expiry as number, linha.notification_type as string));
     }
   }
   return existentes;
@@ -123,13 +123,14 @@ async function inserirFila(supabase: SupabaseClient, linhas: LinhaFila[]): Promi
 function montarLinhas(doc: DocumentoFila, janela: number, canais: Canal[], existentes: Set<string>, agora: string): LinhaFila[] {
   const { titulo } = textoAlerta(janela, rotuloDocumento(doc));
   return canais
-    .filter((canal) => !existentes.has(chave(doc.id, janela, canal)))
+    .filter((canal) => !existentes.has(chaveAviso(doc.id, doc.data_vencimento, janela, canal)))
     .map((canal) => ({
       usuario_id: doc.usuario_id,
       documento_id: doc.id,
       notification_type: canal,
       status: "PENDING" as const,
       days_before_expiry: janela,
+      vencimento: doc.data_vencimento,
       scheduled_date: agora,
       content: titulo,
     }));
